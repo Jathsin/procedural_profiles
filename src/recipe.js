@@ -1,32 +1,20 @@
 import { uniform, weightedChoice, chance, integer } from './math/distributions.js';
-import { luma } from './math/colour.js';
 
-// Initial experimental bounds, not a claim that these palettes are aesthetically final.
+// Pastel, hue-only palettes after Tyler Hobbs's "Working with Color" examples:
+// saturation and brightness are fixed within an image; only the hue varies.
+// Experimental ranges, not final aesthetic rules.
 export const COLOUR_RULES = Object.freeze({
-  saturationMin: 65, saturationMax: 90,
-  startBrightnessMin: 35, startBrightnessMax: 60,
-  endBrightnessMax: 95, minimumBrightnessGap: 25,
-  analogousOffsetMin: 20, analogousOffsetMax: 45,
-  // Perceived lightness difference between endpoints, on a 0–255 luma scale.
-  minimumLumaGap: 50, paletteAttempts: 20,
+  saturationMin: 35, saturationMax: 50,
+  brightnessMin: 65, brightnessMax: 80,
+  hueSpanMin: 40, hueSpanMax: 90,
 });
 
-function sampleStops(c, count, hue, offset) {
-  const r = COLOUR_RULES;
-  const startSaturation = uniform(c, r.saturationMin, r.saturationMax);
-  const startBrightness = uniform(c, r.startBrightnessMin, r.startBrightnessMax);
-  const endBrightness = uniform(c, startBrightness + r.minimumBrightnessGap, r.endBrightnessMax);
-  return Array.from({ length: count }, (_, index) => {
-    const position = index / (count - 1);
-    return {
-      position,
-      h: offset === 0 ? hue : (hue + offset * position + 360) % 360,
-      s: index === 0 ? startSaturation : uniform(c, r.saturationMin, r.saturationMax),
-      b: index === 0 ? startBrightness : index === count - 1 ? endBrightness
-        : uniform(c, startBrightness, endBrightness),
-    };
-  });
-}
+// Small crisp circles at the size of the references; more of them keep the image covered.
+// Radii are fractions of the smaller image dimension.
+export const TEXTURE_RULES = Object.freeze({
+  countMin: 800, countMax: 1200,
+  minRadius: 0.02, maxRadius: 0.06,
+});
 
 export function chooseRecipe(seed, streams) {
   const c = streams.colour;
@@ -35,55 +23,30 @@ export function chooseRecipe(seed, streams) {
     { value: 'linear', weight: 1 },
     { value: 'mixed', weight: 1 },
   ]);
-  const relationship = weightedChoice(c, [
-    { value: 'monochromatic', weight: 1 },
-    { value: 'analogous', weight: 1 },
-  ]);
-  const hue = uniform(c, 0, 360);
-  const offset = relationship === 'analogous'
-    ? uniform(c, r.analogousOffsetMin, r.analogousOffsetMax) * (chance(c, 0.5) ? 1 : -1)
-    : 0;
   const mixed = mode === 'mixed';
-  const colourCount = integer(c, 3, 5);
-  // Retry saturation/brightness, never hue, so dark hues such as blue stay as common.
-  let stops;
-  for (let attempt = 0; attempt < r.paletteAttempts && !stops; attempt++) {
-    const candidate = sampleStops(c, colourCount, hue, offset);
-    if (Math.abs(luma(candidate.at(-1)) - luma(candidate[0])) >= r.minimumLumaGap) stops = candidate;
-  }
-  // Rare fallback: the most contrasting endpoints the rules allow. An analogous palette
-  // may drift towards a darker hue (cyan → blue), so pick the drift direction that
-  // lands its light end on the lighter hue; this keeps every hue above 80 luma.
-  if (!stops) {
-    const gap = o => luma({ h: (hue + o + 360) % 360, s: r.saturationMin, b: r.endBrightnessMax })
-      - luma({ h: hue, s: r.saturationMax, b: r.startBrightnessMin });
-    stops = sampleStops(c, colourCount, hue, gap(-offset) > gap(offset) ? -offset : offset);
-    Object.assign(stops[0], { s: r.saturationMax, b: r.startBrightnessMin });
-    Object.assign(stops.at(-1), { s: r.saturationMin, b: r.endBrightnessMax });
-  }
-  // Broader marks need fewer draws to cover the surface.
-  const scale = integer(streams.texture, 0, 1);
-  const ranges = [
-    { countMin: 45, countMax: 90, minRadius: 0.12, maxRadius: 0.24 },
-    { countMin: 20, countMax: 45, minRadius: 0.22, maxRadius: 0.4 },
+  const hue = uniform(c, 0, 360);
+  const span = uniform(c, r.hueSpanMin, r.hueSpanMax) * (chance(c, 0.5) ? 1 : -1);
+  const s = uniform(c, r.saturationMin, r.saturationMax);
+  const b = uniform(c, r.brightnessMin, r.brightnessMax);
+  const stops = [
+    { position: 0, h: hue, s, b },
+    { position: 1, h: (hue + span + 360) % 360, s, b },
   ];
-  const range = ranges[scale];
-  const texture = {
-    type: 'soft-marks',
-    shape: weightedChoice(streams.texture, ['circle', 'square', 'rectangle', 'triangle']
-      .map(value => ({ value, weight: 1 }))),
-    count: integer(streams.texture, range.countMin, range.countMax),
-    minRadius: range.minRadius,
-    maxRadius: range.maxRadius,
-  };
+  const t = TEXTURE_RULES;
   return {
-    version: 10,
+    version: 11,
     seed,
-    colour: { space: 'HSB', relationship, count: colourCount, stops },
+    colour: { space: 'HSB', relationship: 'analogous', count: stops.length, stops },
     preset: { type: 'gradient', kind: mode,
       ...(mixed ? {} : { angleDegrees: uniform(streams.preset, 0, 360) }) },
-    variation: { distribution: 'uniform', noise: null, colourJitter: mixed ? 0 : 0.15 },
-    texture,
+    // Linear marks shift their gradient position slightly, like Hobbs's (random y (+ y 100)).
+    variation: { distribution: 'uniform', noise: null, colourJitter: mixed ? 0 : 0.08 },
+    texture: {
+      type: 'circles',
+      count: integer(streams.texture, t.countMin, t.countMax),
+      minRadius: t.minRadius,
+      maxRadius: t.maxRadius,
+    },
     elements: [],
   };
 }

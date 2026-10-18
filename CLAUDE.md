@@ -182,7 +182,7 @@ not required at this stage.
 
     procedural_profiles/
       AGENTS.md
-      PROJECT.md
+      CLAUDE.md
       README.md
       pipeline.js                 Public entry point and orchestration
       src/
@@ -407,9 +407,10 @@ Tools discussed:
 ## Current status
 
 Milestones 1 and 1b are implemented: exact string → SHA-256 → seeded recipe →
-equally likely linear or evenly mixed gradient → PNG. README.md explains each
-module, execution commands, and the provisional artistic parameters. Eighteen tests
-pass and both rendered modes have been visually inspected. Later work remains
+equally likely linear or evenly mixed gradient → PNG. The current recipe is
+version 11 (see the section below), which supersedes the version 9/10 sections.
+README.md explains each module, execution commands, and the provisional artistic
+parameters. Thirteen tests pass and both rendered modes have been visually inspected. Later work remains
 subject to explicit user requests. This document records the current scope and
 does not authorise implementing remaining milestones automatically.
 
@@ -446,3 +447,25 @@ direction. Over 1,000 seeds no palette is below 40 luma (previously 23%), and th
 median gap rose from 59 to 68. Rendered contrast improved only slightly, because
 most pixels in low-contrast images show the background midpoint colour: mark
 placement, the background fill and feathering limit contrast, not the palette.
+
+## Hobbs-style pastel circles (recipe version 11, current)
+
+The user rejected the version 10 samples and chose the first three images of Tyler
+Hobbs's "Working with Color in Generative Art" as the target, explicitly excluding
+the high-contrast white/blue/red examples. Measured from those images: saturation
+40% and brightness 70% are constant; only hue varies (about 130–180° random, or
+139° → 221° as a vertical gradient); marks are many small, crisp, opaque circles.
+Their softness comes from close neighbouring colours, not from blurred edges.
+
+User decisions: crisp circles (soft-shapes.js removed; still in commit 7a5a518);
+saturation and brightness chosen per image in a small pastel range (35–50%,
+65–80%) to keep avatars distinguishable; medium circles (250–400, radius 4–10% of
+the smaller dimension) as a compromise between the references (about 2–6%) and
+visibility at avatar size; version 10 committed for history before building this.
+After reviewing, the user asked for smaller circles: now 800–1,200 circles with
+radius 2–6%, matching the references (about 13 ms per 512 × 512 image locally).
+
+Palettes are two stops sharing S/B with a hue span of 40–90° in either direction;
+monochromatic was dropped because with fixed S/B it would be a flat colour. The
+version 10 lightness rule is not used, though luma() remains in the colour helpers.
+Linear mode jitters each circle's gradient position by ±0.08, like Hobbs's offset.

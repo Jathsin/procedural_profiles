@@ -1,39 +1,30 @@
 # Procedural Profiles
 
-Turn an exact string into a repeatable recipe and, now, a PNG image.
+Turn an exact string into a repeatable recipe and a PNG profile image.
 
 ## What does it do now?
 
+Recipe version 11 follows the first examples in Tyler Hobbs's
+[Working with Color in Generative Art](https://www.tylerxhobbs.com/words/working-with-color-in-generative-art):
+about a thousand crisp, opaque circles whose colours differ **only in hue**. Saturation
+and brightness are fixed within each image at a calm pastel level. The circles have
+hard edges, yet the image reads as soft because neighbouring colours are close.
+
 A seed chooses between two colour arrangements with equal probability:
 
-- **Linear:** mark colours progress along a direction across the image.
-- **Mixed:** mark colours are sampled independently of position.
-
-All marks have uniform interiors and feathered edges: the inner 50% stays opaque,
-and the outer 50% fades smoothly to zero. Hard-edged
-circles have been removed. Every image is drawn with marks; plain smooth gradients
-are not an output option.
-
-Palette generation follows the approved experiment: saturation 65–90% and at least
-25 percentage points of brightness difference between endpoint colours. Hue
-relationships remain monochromatic or analogous. These rules target more vivid,
-contrasting results. Version 10 adds a perceived-lightness gap (see below);
-neither rule guarantees contrast after blending.
-
-The seed chooses 3–5 HSB palette stops with a monochromatic or analogous
-relationship. Each has its own saturation and brightness; the renderer interpolates
-between surrounding stops, using every selected colour. The hue can come from anywhere on the colour wheel; the mixed mode is
-not restricted to the green/turquoise reference.
+- **Linear:** the hue progresses along a direction across the image, with a small
+  random offset per circle so the transition is uneven rather than perfect.
+- **Mixed:** each circle picks a random hue from the palette's range.
 
 Equal probability means 50/50 over random choices, not an exact quota in every
-batch. The same input always selects the same mode and parameters in this version.
+batch. The same input always produces the same recipe and image in this version.
 
 ## Run it, step by step
 
 ### 1. Open a terminal in this folder
 
 ```sh
-cd /Users/jathsin/Developer/Graphics/procedural_profiles
+cd /Users/jathsin/Developer/graphics/procedural_profiles
 ```
 
 Requires Node.js 22 or newer. Check your installation with:
@@ -107,20 +98,22 @@ loading the renderer. These are local observations, not performance guarantees.
 npm test
 ```
 
-Expect 18 passing tests and zero failures. They cover exact input handling,
+Expect 13 passing tests and zero failures. They cover exact input handling,
 repeatability, independent streams, parameter ranges across 1,000 IDs, equal mode
 selection boundaries, colour conversion, PNG decoding/dimensions, opaque output,
-gradient direction, soft edge falloff, and resource bounds. They do not prove aesthetic quality or
-unique identities for every possible input.
+gradient direction, crisp circle edges, and resource bounds. They do not prove
+aesthetic quality or unique identities for every possible input.
 
 ## What is in samples/?
 
 - PNG files: rendered images that you can open normally.
 - Matching JSON files: parameters used for those images.
-- object-123.json: a standalone example recipe, regenerated for version 10.
+- object-123.json: a standalone example recipe, regenerated for version 11.
 
 Samples are generated output, not implementation code. Only the sample script
-writes them; the generator itself does not save or cache images.
+writes them; the generator itself does not save or cache images. Filenames stay
+the same when samples are regenerated, so an open image viewer may show a cached
+old version: reopen the file to see the new one.
 
 ## How the modules fit together
 
@@ -129,10 +122,9 @@ writes them; the generator itself does not save or cache images.
 | pipeline.js | generateRecipe(input) returns parameters; generateImage(input, options) asynchronously returns PNG bytes. |
 | src/input-randomness.js | Hash the exact string using SHA-256 and create seeded random streams. |
 | src/math/distributions.js | Range, integer, weighted-choice, and probability helpers. |
-| src/math/colour.js | Convert HSB to RGB and interpolate between colours. |
+| src/math/colour.js | Convert HSB to RGB, interpolate colours, and estimate perceived lightness (luma). |
 | src/recipe.js | Choose the mode and its compatible colour/texture settings. |
-| src/presets/soft-shapes.js | Shape-relative fade masks for soft polygons. |
-| src/presets/gradient.js | Draw marks with linear or mixed colour placement. Texture lives inside this preset. |
+| src/presets/gradient.js | Draw circles with linear or mixed colour placement. Texture lives inside this preset. |
 | src/presets/index.js | Select the drawing implementation. |
 | src/renderer.js | Create the in-memory Canvas and encode PNG bytes. |
 | scripts/inspect-recipe.js | Print a recipe from a terminal argument. |
@@ -143,119 +135,62 @@ Canvas is the in-memory drawing surface. Skia, through @napi-rs/canvas, draws th
 pixels; PNG encoding stores them without lossy compression. The image function
 accepts optional width and height, each an integer from 1 to 2048 (default 512).
 That limit bounds a single surface's memory; consumers still control concurrency.
+A 512 × 512 image takes about 13 ms locally (an observation, not a guarantee).
 
 ## Reading the recipe
 
-- `version: 10`: adds a minimum perceived-lightness gap between endpoint colours.
+- `version: 11`: pastel hue-only palettes drawn with crisp circles.
 - `seed`: hash of the original input string.
-- `colour.stops`: 3–5 HSB palette colours; hue is in degrees, S/B in percentages.
+- `colour.stops`: two HSB colours with the same saturation and brightness; hue is
+  in degrees, S/B in percentages.
 - `preset.kind`: linear or mixed.
 - `angleDegrees`: linear only; 0° goes left to right, 90° top to bottom.
-- `texture.type`: always soft-marks.
+- `variation.colourJitter`: linear only; random offset of each circle's gradient position.
+- `texture.type`: always circles.
 - `variation.noise: null`: coherent noise is not used yet.
 - `elements: []`: no additional decorative figures.
 
-Soft marks belong to the preset's texture; they are not decorative elements.
-Mixed colours sample the palette independently of position; linear colours use
-the mark centre projected onto the chosen gradient direction.
-
 ## Initial artistic parameters (editable experiments)
 
-The relationship choices are equally weighted. Monochromatic endpoints share a
-hue; analogous endpoints differ by 20–45° in either direction.
+These ranges live in COLOUR_RULES and TEXTURE_RULES in src/recipe.js.
 
-Both arrangements use saturation 65–90%. Start brightness is sampled from 35–60%;
-end brightness is sampled from start brightness + 25 up to 95%. Upper bounds
-are excluded. These ranges live in COLOUR_RULES and apply to the palette endpoints,
-not necessarily to the final blended pixels.
-
-The internal name `linear` means a directional colour arrangement of marks, never
-a plain gradient fill. Each mark samples its position along that direction with
-a seeded offset of up to ±0.15 of the palette range, clamped to [0, 1]. This keeps
-local variation while preserving the broad transition. Mixed mode samples the
-whole palette range independently of position. Directional colour jitter has its
-own random stream, so changing it does not move the marks.
-
-The seed chooses one shape per image (circle, square, rectangle, or triangle)
-with equal weights. Polygon marks get seeded rotations. All shapes fade to
-transparent at their own boundary. The seed also chooses one of two scale
-ranges with equal weights:
-
-| Scale | Mark count | Radius as fraction of smaller image dimension |
+| Parameter | Range | Reference |
 | --- | --- | --- |
-| Broad | 45–90 | 12–24% |
-| Very broad | 20–45 | 22–40% |
+| Saturation | 35–50%, one value per image | Hobbs's examples measure 40% |
+| Brightness | 65–80%, one value per image | Hobbs's examples measure 70% |
+| Hue span | 40–90°, either direction around the wheel | about 40° (mixed) and 80–90° (linear) |
+| Circle count | 800–1,200 | enough to cover the image at this size |
+| Circle radius | 2–6% of the smaller image dimension | Hobbs uses roughly 2–6% |
+| Linear jitter | ±0.08 of the palette range | Hobbs offsets by about 8% of the height |
 
-Counts are seeded integers; radii vary per mark. Fewer broad marks compensate for
-the larger area they cover. These are editable experimental ranges, not a speed
-guarantee: large marks still touch more pixels.
+The pastel range, rather than a fixed 40/70, makes different objects easier to tell
+apart. The circle size matches the references, at the user's request; at avatar size the
+circles become a fine texture. The random 8% offset makes the linear transition uneven, like the
+reference; it has its own random stream, so changing it does not move circles.
 
-Each shape has a uniform, fully opaque interior over the inner 50% of its
-shape-relative radius. Only the outer 50% fades to transparency using smoothstep.
-Circles use a radial gradient; polygon alpha masks use the same edge-only rule. Centres can lie slightly
-outside the image; a uniform palette midpoint colour fills uncovered areas.
-
-For polygons, a reusable 256 × 256 alpha mask uses the same smooth falloff with
-shape-relative distance. The mask is tinted and scaled for each mark; no whole-image
-blur is used. Radius means circle radius, square half-side, rectangle half-width
-(its height is half its width), or triangle circumradius. Thus a largest circle
-can have a diameter of 80% of the smaller image dimension. Very large polygon
-stamps may show some raster interpolation at high output resolutions.
-
-Palette stops have evenly spaced positions. Analogous hues progress across the
-existing 20–45° span; monochromatic palettes keep one hue. Interior stops have
-independently sampled saturation and brightness within the endpoint bounds. This
-adds genuine palette controls without unrestricted unrelated colour combinations.
-
-Colour interpolation follows the shorter hue arc. Each mark gets one interpolated
-HSB colour, converted to RGB. No full-image smooth gradient, blur, or filter is applied.
+Circle centres may lie up to one maximum radius outside the image so edges are
+covered like the interior. The background is filled with the palette's midpoint
+colour, so any small gaps between circles stay within the palette. Hue interpolation
+follows the shorter arc around the colour wheel. No blur or filter is applied.
 
 ## Repeatability and deferred work
 
-The renderer accepts version 10 recipes. Regenerate older JSON from its input.
-Version 10 changes palette parameters, so existing inputs produce new
-images. Samples are regenerated using the same filenames. The random-stream derivation
-namespace remains stable, while a separate drawing-v2 stream supplies circle
-placement/colour. More drawing samples do not alter the recipe.
-
+The renderer accepts version 11 recipes. Regenerate older JSON from its input.
 Repeatability is checked in the same runtime/renderer environment, not guaranteed
 pixel-for-pixel across platforms or dependency upgrades. Different seeds can still
-produce similar images. Consumers own caching and storage policies.
+produce similar images, especially with similar hues. Consumers own caching and
+storage policies.
 
 Noisejs is accepted but remains uninstalled until needed. Other presets, Gaussian
 sampling, decorative elements, JPEG export, and post-processing remain deferred.
-See PROJECT.md for the roadmap and AGENTS.md for collaboration principles.
+See CLAUDE.md for the roadmap and AGENTS.md for collaboration principles.
 
-## Edge-feathering correction (recipe version 9)
+## History
 
-Whole-shape fading previously created centre ridges that could look like crosses
-or stars. Marks now have a uniform interior; only a 50% outer band fades.
-Version 9 also removes dense small marks: at most 90 marks, with minimum radius
-12% of the smaller image dimension. Very broad marks are capped at 45. Palette
-rules and the four shape options remain unchanged.
-Overlapping edge bands can still blend colours, but the interior of each individual
-mark is flat. Existing samples were regenerated. Tests check both the flat interior
-and the fading boundary for circles and polygons.
-
-## Sparse composition rule (version 9)
-
-Dense small-mark configurations are excluded from recipe generation. Only broad
-(45–90 marks, radius 12–24%) and very broad (20–45 marks, radius 22–40%) ranges
-remain. Softness now spans the outer half of each shape, retaining a flat centre.
-Samples were regenerated and automated checks enforce these recipe bounds over
-1,000 seeds. The larger feather band reduces clarity of edges without returning
-to the earlier centre-to-boundary fading that created cross-like ridges.
-
-## Perceived-lightness rule (recipe version 10)
-
-HSB brightness is not perceived lightness: at equal brightness, blue looks much
-darker than green. Version 10 therefore also requires the endpoint colours to
-differ by at least 50 on a 0–255 luma scale (luma estimates lightness by weighting
-red, green and blue as the eye does). If a palette fails, its saturation and
-brightness are resampled, never its hue, so blues stay as common as other hues.
-After 20 failed attempts (about 6% of seeds), a fallback uses the most contrasting
-endpoints the rules allow; analogous palettes may then drift in the opposite hue
-direction. Over 1,000 seeds no palette is below 40 luma (previously 23%), and the
-median gap rose from 59 to 68. Rendered contrast improved only slightly, because
-most pixels in low-contrast images show the background midpoint colour: mark
-placement, the background fill and feathering limit contrast, not the palette.
+- Version 9: soft-edged circles, squares, rectangles and triangles; vivid
+  monochromatic or analogous palettes (commit e43257c).
+- Version 10: added a minimum perceived-lightness gap between palette endpoints
+  (commit 7a5a518). It raised palette contrast, but images stayed flat because most
+  pixels showed the background colour.
+- Version 11: replaced both with Hobbs-style pastel hue-only palettes and crisp
+  circles, after the user compared the samples with his reference images.

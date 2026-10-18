@@ -4,7 +4,6 @@ import { generateRecipe } from '../pipeline.js';
 import { hashInput, createRandomStreams } from '../src/input-randomness.js';
 import { chooseRecipe } from '../src/recipe.js';
 import { uniform, integer, weightedChoice, chance } from '../src/math/distributions.js';
-import { luma } from '../src/math/colour.js';
 
 test('SHA-256 known vector, exact input handling, and invalid inputs', () => {
   assert.equal(hashInput('abc'), 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');
@@ -39,42 +38,35 @@ test('consuming texture changes only texture choices, not colour or composition'
   assert.notEqual(a.texture(), a.elements());
 });
 
-test('1000 seeds yield compatible recipes within colour constraints', () => {
-  const relationships = new Set();
+test('1000 seeds yield pastel, hue-only palettes and small crisp circles', () => {
   const modes = { linear: 0, mixed: 0 };
   for (let i = 0; i < 1000; i++) {
     const recipe = generateRecipe(`object-${i}`);
-    const { colour, preset } = recipe;
-    relationships.add(colour.relationship);
-    assert.ok(colour.count >= 3 && colour.count <= 5);
-    assert.equal(colour.stops.length, colour.count);
+    const { colour, preset, texture } = recipe;
+    assert.equal(recipe.version, 11);
+    assert.equal(colour.relationship, 'analogous');
+    assert.equal(colour.stops.length, 2);
     assert.equal(preset.type, 'gradient');
     modes[preset.kind]++;
     if (preset.kind === 'linear') assert.ok(preset.angleDegrees >= 0 && preset.angleDegrees < 360);
     else assert.equal(preset.angleDegrees, undefined);
-    for (const stop of colour.stops) {
-      assert.ok(stop.h >= 0 && stop.h < 360);
-      assert.ok(stop.s >= 65 && stop.s <= 90);
-      assert.ok(stop.b >= 0 && stop.b <= 100);
-    }
-    const start = colour.stops[0], end = colour.stops.at(-1);
-    assert.equal(start.position, 0);
-    assert.equal(end.position, 1);
-    assert.ok(end.b - start.b >= 25);
-    assert.ok(start.b >= 35 && start.b < 60);
-    assert.ok(end.b <= 95);
-    assert.ok(Math.abs(luma(end) - luma(start)) >= 50);
+    const [start, end] = colour.stops;
+    assert.deepEqual([start.position, end.position], [0, 1]);
+    // Only the hue varies within an image.
+    assert.equal(start.s, end.s);
+    assert.equal(start.b, end.b);
+    assert.ok(start.s >= 35 && start.s < 50);
+    assert.ok(start.b >= 65 && start.b < 80);
+    for (const stop of colour.stops) assert.ok(stop.h >= 0 && stop.h < 360);
     const delta = Math.abs(start.h - end.h);
     const distance = Math.min(delta, 360 - delta);
-    if (colour.relationship === 'monochromatic') assert.ok(distance < 1e-10);
-    else assert.ok(distance >= 20 - 1e-10 && distance <= 45);
+    assert.ok(distance >= 40 - 1e-10 && distance <= 90 + 1e-10);
     assert.equal(recipe.variation.noise, null);
-    assert.equal(recipe.texture.type, 'soft-marks');
-    assert.ok(recipe.texture.count >= 20 && recipe.texture.count <= 90);
-    assert.ok(recipe.texture.minRadius >= 0.12 && recipe.texture.maxRadius <= 0.4);
+    assert.equal(texture.type, 'circles');
+    assert.ok(texture.count >= 800 && texture.count <= 1200);
+    assert.deepEqual([texture.minRadius, texture.maxRadius], [0.02, 0.06]);
     assert.deepEqual(recipe.elements, []);
   }
-  assert.deepEqual([...relationships].sort(), ['analogous', 'monochromatic']);
   assert.ok(modes.mixed > 400 && modes.mixed < 600);
   assert.equal(modes.linear + modes.mixed, 1000);
 });
@@ -104,11 +96,3 @@ test('mode weights divide the random interval equally', () => {
   }
 });
 
-test('palettes that never reach the lightness gap fall back to the most contrasting endpoints', () => {
-  // A constant stream picks red with a 25-point brightness gap: only ~32 luma, so every attempt fails.
-  const { seed, streams } = createRandomStreams('fallback');
-  streams.colour = () => 0;
-  const { stops } = chooseRecipe(seed, streams).colour;
-  assert.deepEqual([stops[0].s, stops[0].b, stops.at(-1).s, stops.at(-1).b], [90, 35, 65, 95]);
-  assert.ok(luma(stops.at(-1)) - luma(stops[0]) >= 50);
-});

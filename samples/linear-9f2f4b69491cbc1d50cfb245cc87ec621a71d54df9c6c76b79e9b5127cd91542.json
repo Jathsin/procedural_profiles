@@ -1,40 +1,22 @@
 {
-  "version": 10,
+  "version": 11,
   "seed": "9f2f4b69491cbc1d50cfb245cc87ec621a71d54df9c6c76b79e9b5127cd91542",
   "colour": {
     "space": "HSB",
-    "relationship": "monochromatic",
-    "count": 5,
+    "relationship": "analogous",
+    "count": 2,
     "stops": [
       {
         "position": 0,
-        "h": 321.93088101240966,
-        "s": 89.25899903084772,
-        "b": 57.28573888010291
-      },
-      {
-        "position": 0.25,
-        "h": 321.93088101240966,
-        "s": 71.21031287579173,
-        "b": 91.76191599405456
-      },
-      {
-        "position": 0.5,
-        "h": 321.93088101240966,
-        "s": 79.42655402192416,
-        "b": 59.21645936010693
-      },
-      {
-        "position": 0.75,
-        "h": 321.93088101240966,
-        "s": 80.97945226678759,
-        "b": 59.89475943257302
+        "h": 93.10801210531477,
+        "s": 43.988139342810314,
+        "b": 76.48054590240099
       },
       {
         "position": 1,
-        "h": 321.93088101240966,
-        "s": 66.46755779836606,
-        "b": 92.53392719896179
+        "h": 8.39538974248012,
+        "s": 43.988139342810314,
+        "b": 76.48054590240099
       }
     ]
   },
@@ -46,14 +28,13 @@
   "variation": {
     "distribution": "uniform",
     "noise": null,
-    "colourJitter": 0.15
+    "colourJitter": 0.08
   },
   "texture": {
-    "type": "soft-marks",
-    "shape": "circle",
-    "count": 32,
-    "minRadius": 0.22,
-    "maxRadius": 0.4
+    "type": "circles",
+    "count": 1066,
+    "minRadius": 0.02,
+    "maxRadius": 0.06
   },
   "elements": []
 }

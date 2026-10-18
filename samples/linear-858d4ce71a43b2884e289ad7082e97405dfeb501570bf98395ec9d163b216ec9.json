@@ -1,34 +1,22 @@
 {
-  "version": 10,
+  "version": 11,
   "seed": "858d4ce71a43b2884e289ad7082e97405dfeb501570bf98395ec9d163b216ec9",
   "colour": {
     "space": "HSB",
-    "relationship": "monochromatic",
-    "count": 4,
+    "relationship": "analogous",
+    "count": 2,
     "stops": [
       {
         "position": 0,
-        "h": 328.3037687424853,
-        "s": 82.15609119382438,
-        "b": 52.415483792626276
-      },
-      {
-        "position": 0.3333333333333333,
-        "h": 328.3037687424853,
-        "s": 83.01100795272201,
-        "b": 85.65982151161148
-      },
-      {
-        "position": 0.6666666666666666,
-        "h": 328.3037687424853,
-        "s": 81.67268392107694,
-        "b": 87.41480810781223
+        "h": 116.80283550057734,
+        "s": 45.293654716294625,
+        "b": 75.44929027557576
       },
       {
         "position": 1,
-        "h": 328.3037687424853,
-        "s": 69.73242831231981,
-        "b": 88.52547102905831
+        "h": 31.205089841898825,
+        "s": 45.293654716294625,
+        "b": 75.44929027557576
       }
     ]
   },
@@ -40,14 +28,13 @@
   "variation": {
     "distribution": "uniform",
     "noise": null,
-    "colourJitter": 0.15
+    "colourJitter": 0.08
   },
   "texture": {
-    "type": "soft-marks",
-    "shape": "triangle",
-    "count": 61,
-    "minRadius": 0.12,
-    "maxRadius": 0.24
+    "type": "circles",
+    "count": 876,
+    "minRadius": 0.02,
+    "maxRadius": 0.06
   },
   "elements": []
 }
