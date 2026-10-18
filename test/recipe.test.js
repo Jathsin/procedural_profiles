@@ -68,8 +68,8 @@ test('1000 seeds yield compatible recipes within colour constraints', () => {
     else assert.ok(distance >= 20 - 1e-10 && distance <= 45);
     assert.equal(recipe.variation.noise, null);
     assert.equal(recipe.texture.type, 'soft-marks');
-    assert.ok(recipe.texture.count >= 100 && recipe.texture.count <= 650);
-    assert.ok(recipe.texture.maxRadius > 0.045);
+    assert.ok(recipe.texture.count >= 20 && recipe.texture.count <= 90);
+    assert.ok(recipe.texture.minRadius >= 0.12 && recipe.texture.maxRadius <= 0.4);
     assert.deepEqual(recipe.elements, []);
   }
   assert.deepEqual([...relationships].sort(), ['analogous', 'monochromatic']);

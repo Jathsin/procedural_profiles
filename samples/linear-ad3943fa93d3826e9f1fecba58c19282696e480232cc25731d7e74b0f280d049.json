@@ -1,5 +1,5 @@
 {
-  "version": 6,
+  "version": 9,
   "seed": "ad3943fa93d3826e9f1fecba58c19282696e480232cc25731d7e74b0f280d049",
   "colour": {
     "space": "HSB",
@@ -44,9 +44,10 @@
   },
   "texture": {
     "type": "soft-marks",
-    "count": 516,
-    "minRadius": 0.025,
-    "maxRadius": 0.07
+    "shape": "rectangle",
+    "count": 37,
+    "minRadius": 0.22,
+    "maxRadius": 0.4
   },
   "elements": []
 }

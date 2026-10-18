@@ -39,15 +39,22 @@ export function chooseRecipe(seed, streams) {
     };
   });
   // Broader marks need fewer draws to cover the surface.
-  const broad = chance(streams.texture, 0.5);
+  const scale = integer(streams.texture, 0, 1);
+  const ranges = [
+    { countMin: 45, countMax: 90, minRadius: 0.12, maxRadius: 0.24 },
+    { countMin: 20, countMax: 45, minRadius: 0.22, maxRadius: 0.4 },
+  ];
+  const range = ranges[scale];
   const texture = {
     type: 'soft-marks',
-    count: broad ? integer(streams.texture, 100, 220) : integer(streams.texture, 350, 650),
-    minRadius: broad ? 0.06 : 0.025,
-    maxRadius: broad ? 0.16 : 0.07,
+    shape: weightedChoice(streams.texture, ['circle', 'square', 'rectangle', 'triangle']
+      .map(value => ({ value, weight: 1 }))),
+    count: integer(streams.texture, range.countMin, range.countMax),
+    minRadius: range.minRadius,
+    maxRadius: range.maxRadius,
   };
   return {
-    version: 6,
+    version: 9,
     seed,
     colour: { space: 'HSB', relationship, count: colourCount, stops },
     preset: { type: 'gradient', kind: mode,

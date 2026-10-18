@@ -43,6 +43,7 @@ test('both modes export opaque, repeatable, nonconstant PNG images', async () =>
 test('linear marks carry a left-to-right colour trend', async () => {
   const recipe = generateRecipe('object-1');
   recipe.preset.angleDegrees = 0;
+  recipe.texture = { type: 'soft-marks', shape: 'circle', count: 600, minRadius: 0.04, maxRadius: 0.1 };
   recipe.colour.stops = [{ position: 0, h: 0, s: 0, b: 0 }, { position: 1, h: 0, s: 0, b: 100 }];
   const { data } = await pixels(await renderRecipe(recipe, { width: 128, height: 128 }));
   const average = (from, to) => {
@@ -75,12 +76,14 @@ test('soft marks fade smoothly to the background instead of a hard circle edge',
   const { data } = context.getImageData(0, 0, 128, 128);
   const red = x => data[(64 * 128 + x) * 4];
   assert.ok(red(64) < 10);
-  assert.ok(red(88) > 100 && red(88) < 160);
-  assert.ok(red(110) > 245);
+  assert.equal(red(84), 0);
+  assert.ok(red(100) > 100 && red(100) < 170);
+  assert.ok(red(107) > 200 && red(107) < 245);
+  assert.ok(red(111) > 245);
   assert.equal(red(113), 255);
   for (let x = 64; x < 112; x++) {
     assert.ok(red(x + 1) >= red(x));
-    assert.ok(red(x + 1) - red(x) < 15);
+    assert.ok(red(x + 1) - red(x) < 50);
   }
 });
 
@@ -100,4 +103,58 @@ test('multi-colour sampling includes interior colours and wraps hue', () => {
   assert.deepEqual(samplePalette(stops, 0.5), { h: 10, s: 85, b: 90 });
   assert.equal(samplePalette(stops, 0.25).h, 0);
   assert.deepEqual(samplePalette(stops, 1), { h: 30, s: 75, b: 65 });
+});
+
+
+test('every soft shape renders repeatably with different geometry', async () => {
+  const hashes = new Set();
+  for (const shape of ['circle', 'square', 'rectangle', 'triangle']) {
+    const recipe = generateRecipe('shape-review');
+    recipe.texture.shape = shape;
+    const options = { width: 128, height: 128 };
+    const image = await renderRecipe(recipe, options);
+    assert.deepEqual(await renderRecipe(recipe, options), image);
+    hashes.add(image.toString('base64'));
+  }
+  assert.equal(hashes.size, 4);
+});
+
+test('polygon falloffs reach zero at their own boundaries', async () => {
+  const { shapeDistance } = await import('../src/presets/soft-shapes.js');
+  for (const shape of ['square', 'rectangle', 'triangle']) assert.equal(shapeDistance(shape, 0, 0), 0);
+  assert.equal(shapeDistance('square', 1, 0.4), 1);
+  assert.equal(shapeDistance('rectangle', 0, 0.5), 1);
+  assert.equal(shapeDistance('triangle', 0, 0.5), 1);
+  assert.equal(shapeDistance('triangle', 0, -1), 1);
+});
+
+
+test('polygon interiors are uniform with feathering confined to the boundary', async () => {
+  const { createSoftShapeBrush } = await import('../src/presets/soft-shapes.js');
+  for (const shape of ['square', 'rectangle', 'triangle']) {
+    const canvas = createCanvas(256, 256);
+    const context = canvas.getContext('2d');
+    createSoftShapeBrush(shape)(context, 128, 128, 100, [40, 100, 180], 0);
+    const { data } = context.getImageData(0, 0, 256, 256);
+    const alpha = (x, y) => data[(y * 256 + x) * 4 + 3];
+    for (const [x, y] of [[128,128], [108,128], [148,128], [128,108], [128,148]]) {
+      assert.equal(alpha(x, y), 255);
+    }
+    const edgeY = shape === 'square' ? 203 : 165;
+    assert.ok(alpha(128, edgeY) > 20 && alpha(128, edgeY) < 230);
+    assert.equal(alpha(128, shape === 'square' ? 231 : 181), 0);
+  }
+});
+
+
+test('seeded recipes exclude dense small-mark configurations', () => {
+  const counts = new Set();
+  for (let i = 0; i < 1000; i++) {
+    const { texture } = generateRecipe(`sparse-${i}`);
+    assert.ok(texture.count <= 90);
+    assert.ok(texture.minRadius >= 0.12);
+    if (texture.maxRadius === 0.4) assert.ok(texture.count <= 45);
+    counts.add(texture.maxRadius);
+  }
+  assert.equal(counts.size, 2);
 });

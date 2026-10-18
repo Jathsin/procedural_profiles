@@ -9,7 +9,8 @@ A seed chooses between two colour arrangements with equal probability:
 - **Linear:** mark colours progress along a direction across the image.
 - **Mixed:** mark colours are sampled independently of position.
 
-All marks are soft: their opacity fades smoothly to zero at the edge. Hard-edged
+All marks have uniform interiors and feathered edges: the inner 50% stays opaque,
+and the outer 50% fades smoothly to zero. Hard-edged
 circles have been removed. Every image is drawn with marks; plain smooth gradients
 are not an output option.
 
@@ -105,7 +106,7 @@ loading the renderer. These are local observations, not performance guarantees.
 npm test
 ```
 
-Expect 13 passing tests and zero failures. They cover exact input handling,
+Expect 17 passing tests and zero failures. They cover exact input handling,
 repeatability, independent streams, parameter ranges across 1,000 IDs, equal mode
 selection boundaries, colour conversion, PNG decoding/dimensions, opaque output,
 gradient direction, soft edge falloff, and resource bounds. They do not prove aesthetic quality or
@@ -115,7 +116,7 @@ unique identities for every possible input.
 
 - PNG files: rendered images that you can open normally.
 - Matching JSON files: parameters used for those images.
-- object-123.json: a standalone example recipe, regenerated for version 6.
+- object-123.json: a standalone example recipe, regenerated for version 9.
 
 Samples are generated output, not implementation code. Only the sample script
 writes them; the generator itself does not save or cache images.
@@ -129,6 +130,7 @@ writes them; the generator itself does not save or cache images.
 | src/math/distributions.js | Range, integer, weighted-choice, and probability helpers. |
 | src/math/colour.js | Convert HSB to RGB and interpolate between colours. |
 | src/recipe.js | Choose the mode and its compatible colour/texture settings. |
+| src/presets/soft-shapes.js | Shape-relative fade masks for soft polygons. |
 | src/presets/gradient.js | Draw marks with linear or mixed colour placement. Texture lives inside this preset. |
 | src/presets/index.js | Select the drawing implementation. |
 | src/renderer.js | Create the in-memory Canvas and encode PNG bytes. |
@@ -143,7 +145,7 @@ That limit bounds a single surface's memory; consumers still control concurrency
 
 ## Reading the recipe
 
-- `version: 6`: soft marks only, variable mark scale/count, and 3–5 palette stops.
+- `version: 9`: adds soft squares, rectangles, triangles, and very broad marks.
 - `seed`: hash of the original input string.
 - `colour.stops`: 3–5 HSB palette colours; hue is in degrees, S/B in percentages.
 - `preset.kind`: linear or mixed.
@@ -173,20 +175,31 @@ local variation while preserving the broad transition. Mixed mode samples the
 whole palette range independently of position. Directional colour jitter has its
 own random stream, so changing it does not move the marks.
 
-The seed chooses one of two initial scale ranges with equal weights:
+The seed chooses one shape per image (circle, square, rectangle, or triangle)
+with equal weights. Polygon marks get seeded rotations. All shapes fade to
+transparent at their own boundary. The seed also chooses one of two scale
+ranges with equal weights:
 
 | Scale | Mark count | Radius as fraction of smaller image dimension |
 | --- | --- | --- |
-| Medium | 350–650 | 2.5–7% |
-| Broad | 100–220 | 6–16% |
+| Broad | 45–90 | 12–24% |
+| Very broad | 20–45 | 22–40% |
 
 Counts are seeded integers; radii vary per mark. Fewer broad marks compensate for
 the larger area they cover. These are editable experimental ranges, not a speed
 guarantee: large marks still touch more pixels.
 
-Each mark uses a radial gradient fading from opacity 1 at its centre to 0 at its
-edge, approximating 1 − (3t² − 2t³) with nine opacity stops. Centres can lie slightly
+Each shape has a uniform, fully opaque interior over the inner 50% of its
+shape-relative radius. Only the outer 50% fades to transparency using smoothstep.
+Circles use a radial gradient; polygon alpha masks use the same edge-only rule. Centres can lie slightly
 outside the image; a uniform palette midpoint colour fills uncovered areas.
+
+For polygons, a reusable 256 × 256 alpha mask uses the same smooth falloff with
+shape-relative distance. The mask is tinted and scaled for each mark; no whole-image
+blur is used. Radius means circle radius, square half-side, rectangle half-width
+(its height is half its width), or triangle circumradius. Thus a largest circle
+can have a diameter of 80% of the smaller image dimension. Very large polygon
+stamps may show some raster interpolation at high output resolutions.
 
 Palette stops have evenly spaced positions. Analogous hues progress across the
 existing 20–45° span; monochromatic palettes keep one hue. Interior stops have
@@ -198,8 +211,8 @@ HSB colour, converted to RGB. No full-image smooth gradient, blur, or filter is 
 
 ## Repeatability and deferred work
 
-The renderer accepts version 6 recipes. Regenerate older JSON from its input.
-Version 6 changes palette and texture parameters, so existing inputs produce new
+The renderer accepts version 9 recipes. Regenerate older JSON from its input.
+Version 9 changes palette and texture parameters, so existing inputs produce new
 images. Samples are regenerated using the same filenames. The random-stream derivation
 namespace remains stable, while a separate drawing-v2 stream supplies circle
 placement/colour. More drawing samples do not alter the recipe.
@@ -211,3 +224,23 @@ produce similar images. Consumers own caching and storage policies.
 Noisejs is accepted but remains uninstalled until needed. Other presets, Gaussian
 sampling, decorative elements, JPEG export, and post-processing remain deferred.
 See PROJECT.md for the roadmap and AGENTS.md for collaboration principles.
+
+## Edge-feathering correction (recipe version 9)
+
+Whole-shape fading previously created centre ridges that could look like crosses
+or stars. Marks now have a uniform interior; only a 50% outer band fades.
+Version 9 also removes dense small marks: at most 90 marks, with minimum radius
+12% of the smaller image dimension. Very broad marks are capped at 45. Palette
+rules and the four shape options remain unchanged.
+Overlapping edge bands can still blend colours, but the interior of each individual
+mark is flat. Existing samples were regenerated. Tests check both the flat interior
+and the fading boundary for circles and polygons.
+
+## Sparse composition rule (version 9)
+
+Dense small-mark configurations are excluded from recipe generation. Only broad
+(45–90 marks, radius 12–24%) and very broad (20–45 marks, radius 22–40%) ranges
+remain. Softness now spans the outer half of each shape, retaining a flat centre.
+Samples were regenerated and automated checks enforce these recipe bounds over
+1,000 seeds. The larger feather band reduces clarity of edges without returning
+to the earlier centre-to-boundary fading that created cross-like ridges.

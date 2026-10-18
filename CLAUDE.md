@@ -250,13 +250,18 @@ therefore selects linear or mixed mode with equal weights. This is probability,
 not an exact 50/50 quota per batch. Both retain the two-colour monochromatic or
 analogous palette options; no palette is hard-coded to green/turquoise.
 
-Current recipe version 6 uses only soft marks. The hard-edged circle feature is
+Current recipe version 9 uses only soft marks. The hard-edged circle feature is
 removed at the user's request. The seed still chooses equally between directional
 and evenly mixed colour arrangements. Every mark fades to transparency at its edge;
 no plain smooth gradient or post-processing blur is used.
 
-The seed selects either 350–650 medium marks (radii 2.5–7% of the smaller image
-dimension), or 100–220 broad marks (radii 6–16%), with equal initial weights.
+The seed selects broad (45–90 marks, radii 12–24%) or very broad (20–45 marks, 22–40%) with equal initial weights. Sizes are
+relative to the smaller image dimension. It independently selects circle, square,
+rectangle, or triangle, equally weighted, one shape per image. Polygon marks use
+seeded rotations and a reusable alpha mask that fades at their own boundary.
+Radius means circle radius, square half-side, rectangle half-width (2:1 aspect),
+or triangle circumradius. src/presets/soft-shapes.js implements polygon falloff
+inside the preset package; no hard-edged option or post-processing is introduced.
 These are adjustable experimental ranges. Larger marks cover more pixels, so fewer
 marks do not automatically imply faster rendering.
 
@@ -283,8 +288,8 @@ pipeline.js now exposes asynchronous generateImage(input, options), returning PN
 bytes, alongside generateRecipe(input). Only the sample script writes files.
 It saves PNG/JSON pairs using safe hash-based filenames, sequentially.
 
-Verification: 13 tests pass, covering recipes and both PNG modes; rendered samples
-were visually inspected. Older recipes must be regenerated for the version 6 renderer.
+Verification: 17 tests pass, covering recipes and both PNG modes; rendered samples
+were visually inspected. Older recipes must be regenerated for the version 9 renderer.
 Noise, decorative elements, other presets, JPEG, and post-processing remain deferred.
 
 ### 2. Controlled variation within gradients
@@ -403,7 +408,27 @@ Tools discussed:
 
 Milestones 1 and 1b are implemented: exact string → SHA-256 → seeded recipe →
 equally likely linear or evenly mixed gradient → PNG. README.md explains each
-module, execution commands, and the provisional artistic parameters. Thirteen tests
+module, execution commands, and the provisional artistic parameters. Seventeen tests
 pass and both rendered modes have been visually inspected. Later work remains
 subject to explicit user requests. This document records the current scope and
 does not authorise implementing remaining milestones automatically.
+
+## Edge-feathering correction (recipe version 9)
+
+Whole-shape fading previously created centre ridges that could look like crosses
+or stars. Marks now have a uniform interior; only a 50% outer band fades.
+Version 9 also removes dense small marks: at most 90 marks, with minimum radius
+12% of the smaller image dimension. Very broad marks are capped at 45. Palette
+rules and the four shape options remain unchanged.
+Overlapping edge bands can still blend colours, but the interior of each individual
+mark is flat. Existing samples were regenerated. Tests check both the flat interior
+and the fading boundary for circles and polygons.
+
+## Sparse composition rule (version 9)
+
+Dense small-mark configurations are excluded from recipe generation. Only broad
+(45–90 marks, radius 12–24%) and very broad (20–45 marks, radius 22–40%) ranges
+remain. Softness now spans the outer half of each shape, retaining a flat centre.
+Samples were regenerated and automated checks enforce these recipe bounds over
+1,000 seeds. The larger feather band reduces clarity of edges without returning
+to the earlier centre-to-boundary fading that created cross-like ridges.
