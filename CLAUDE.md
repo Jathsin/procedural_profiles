@@ -288,8 +288,8 @@ pipeline.js now exposes asynchronous generateImage(input, options), returning PN
 bytes, alongside generateRecipe(input). Only the sample script writes files.
 It saves PNG/JSON pairs using safe hash-based filenames, sequentially.
 
-Verification: 17 tests pass, covering recipes and both PNG modes; rendered samples
-were visually inspected. Older recipes must be regenerated for the version 9 renderer.
+Verification: 18 tests pass, covering recipes and both PNG modes; rendered samples
+were visually inspected. Older recipes must be regenerated for the version 10 renderer.
 Noise, decorative elements, other presets, JPEG, and post-processing remain deferred.
 
 ### 2. Controlled variation within gradients
@@ -408,7 +408,7 @@ Tools discussed:
 
 Milestones 1 and 1b are implemented: exact string → SHA-256 → seeded recipe →
 equally likely linear or evenly mixed gradient → PNG. README.md explains each
-module, execution commands, and the provisional artistic parameters. Seventeen tests
+module, execution commands, and the provisional artistic parameters. Eighteen tests
 pass and both rendered modes have been visually inspected. Later work remains
 subject to explicit user requests. This document records the current scope and
 does not authorise implementing remaining milestones automatically.
@@ -432,3 +432,17 @@ remain. Softness now spans the outer half of each shape, retaining a flat centre
 Samples were regenerated and automated checks enforce these recipe bounds over
 1,000 seeds. The larger feather band reduces clarity of edges without returning
 to the earlier centre-to-boundary fading that created cross-like ridges.
+
+## Perceived-lightness rule (recipe version 10)
+
+HSB brightness is not perceived lightness: at equal brightness, blue looks much
+darker than green. Version 10 therefore also requires the endpoint colours to
+differ by at least 50 on a 0–255 luma scale (luma estimates lightness by weighting
+red, green and blue as the eye does). If a palette fails, its saturation and
+brightness are resampled, never its hue, so blues stay as common as other hues.
+After 20 failed attempts (about 6% of seeds), a fallback uses the most contrasting
+endpoints the rules allow; analogous palettes may then drift in the opposite hue
+direction. Over 1,000 seeds no palette is below 40 luma (previously 23%), and the
+median gap rose from 59 to 68. Rendered contrast improved only slightly, because
+most pixels in low-contrast images show the background midpoint colour: mark
+placement, the background fill and feathering limit contrast, not the palette.

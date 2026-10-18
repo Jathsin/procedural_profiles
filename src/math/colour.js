@@ -34,3 +34,10 @@ export function samplePalette(stops, t) {
   }
   return stops.at(-1);
 }
+
+// Perceived lightness estimate (Rec. 709 weights on 0–255 RGB): the eye is most
+// sensitive to green and least to blue, so equal HSB brightness can look very different.
+export function luma(colour) {
+  const [r, g, b] = hsbToRGB(colour);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}

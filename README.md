@@ -17,7 +17,8 @@ are not an output option.
 Palette generation follows the approved experiment: saturation 65–90% and at least
 25 percentage points of brightness difference between endpoint colours. Hue
 relationships remain monochromatic or analogous. These rules target more vivid,
-contrasting results; they do not guarantee perceived contrast after blending.
+contrasting results. Version 10 adds a perceived-lightness gap (see below);
+neither rule guarantees contrast after blending.
 
 The seed chooses 3–5 HSB palette stops with a monochromatic or analogous
 relationship. Each has its own saturation and brightness; the renderer interpolates
@@ -106,7 +107,7 @@ loading the renderer. These are local observations, not performance guarantees.
 npm test
 ```
 
-Expect 17 passing tests and zero failures. They cover exact input handling,
+Expect 18 passing tests and zero failures. They cover exact input handling,
 repeatability, independent streams, parameter ranges across 1,000 IDs, equal mode
 selection boundaries, colour conversion, PNG decoding/dimensions, opaque output,
 gradient direction, soft edge falloff, and resource bounds. They do not prove aesthetic quality or
@@ -116,7 +117,7 @@ unique identities for every possible input.
 
 - PNG files: rendered images that you can open normally.
 - Matching JSON files: parameters used for those images.
-- object-123.json: a standalone example recipe, regenerated for version 9.
+- object-123.json: a standalone example recipe, regenerated for version 10.
 
 Samples are generated output, not implementation code. Only the sample script
 writes them; the generator itself does not save or cache images.
@@ -145,7 +146,7 @@ That limit bounds a single surface's memory; consumers still control concurrency
 
 ## Reading the recipe
 
-- `version: 9`: adds soft squares, rectangles, triangles, and very broad marks.
+- `version: 10`: adds a minimum perceived-lightness gap between endpoint colours.
 - `seed`: hash of the original input string.
 - `colour.stops`: 3–5 HSB palette colours; hue is in degrees, S/B in percentages.
 - `preset.kind`: linear or mixed.
@@ -211,8 +212,8 @@ HSB colour, converted to RGB. No full-image smooth gradient, blur, or filter is 
 
 ## Repeatability and deferred work
 
-The renderer accepts version 9 recipes. Regenerate older JSON from its input.
-Version 9 changes palette and texture parameters, so existing inputs produce new
+The renderer accepts version 10 recipes. Regenerate older JSON from its input.
+Version 10 changes palette parameters, so existing inputs produce new
 images. Samples are regenerated using the same filenames. The random-stream derivation
 namespace remains stable, while a separate drawing-v2 stream supplies circle
 placement/colour. More drawing samples do not alter the recipe.
@@ -244,3 +245,17 @@ remain. Softness now spans the outer half of each shape, retaining a flat centre
 Samples were regenerated and automated checks enforce these recipe bounds over
 1,000 seeds. The larger feather band reduces clarity of edges without returning
 to the earlier centre-to-boundary fading that created cross-like ridges.
+
+## Perceived-lightness rule (recipe version 10)
+
+HSB brightness is not perceived lightness: at equal brightness, blue looks much
+darker than green. Version 10 therefore also requires the endpoint colours to
+differ by at least 50 on a 0–255 luma scale (luma estimates lightness by weighting
+red, green and blue as the eye does). If a palette fails, its saturation and
+brightness are resampled, never its hue, so blues stay as common as other hues.
+After 20 failed attempts (about 6% of seeds), a fallback uses the most contrasting
+endpoints the rules allow; analogous palettes may then drift in the opposite hue
+direction. Over 1,000 seeds no palette is below 40 luma (previously 23%), and the
+median gap rose from 59 to 68. Rendered contrast improved only slightly, because
+most pixels in low-contrast images show the background midpoint colour: mark
+placement, the background fill and feathering limit contrast, not the palette.

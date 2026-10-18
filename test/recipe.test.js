@@ -4,6 +4,7 @@ import { generateRecipe } from '../pipeline.js';
 import { hashInput, createRandomStreams } from '../src/input-randomness.js';
 import { chooseRecipe } from '../src/recipe.js';
 import { uniform, integer, weightedChoice, chance } from '../src/math/distributions.js';
+import { luma } from '../src/math/colour.js';
 
 test('SHA-256 known vector, exact input handling, and invalid inputs', () => {
   assert.equal(hashInput('abc'), 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');
@@ -53,7 +54,7 @@ test('1000 seeds yield compatible recipes within colour constraints', () => {
     else assert.equal(preset.angleDegrees, undefined);
     for (const stop of colour.stops) {
       assert.ok(stop.h >= 0 && stop.h < 360);
-      assert.ok(stop.s >= 65 && stop.s < 90);
+      assert.ok(stop.s >= 65 && stop.s <= 90);
       assert.ok(stop.b >= 0 && stop.b <= 100);
     }
     const start = colour.stops[0], end = colour.stops.at(-1);
@@ -61,7 +62,8 @@ test('1000 seeds yield compatible recipes within colour constraints', () => {
     assert.equal(end.position, 1);
     assert.ok(end.b - start.b >= 25);
     assert.ok(start.b >= 35 && start.b < 60);
-    assert.ok(end.b < 95);
+    assert.ok(end.b <= 95);
+    assert.ok(Math.abs(luma(end) - luma(start)) >= 50);
     const delta = Math.abs(start.h - end.h);
     const distance = Math.min(delta, 360 - delta);
     if (colour.relationship === 'monochromatic') assert.ok(distance < 1e-10);
@@ -100,4 +102,13 @@ test('mode weights divide the random interval equally', () => {
     streams.preset = () => value;
     assert.equal(chooseRecipe(seed, streams).preset.kind, expected);
   }
+});
+
+test('palettes that never reach the lightness gap fall back to the most contrasting endpoints', () => {
+  // A constant stream picks red with a 25-point brightness gap: only ~32 luma, so every attempt fails.
+  const { seed, streams } = createRandomStreams('fallback');
+  streams.colour = () => 0;
+  const { stops } = chooseRecipe(seed, streams).colour;
+  assert.deepEqual([stops[0].s, stops[0].b, stops.at(-1).s, stops.at(-1).b], [90, 35, 65, 95]);
+  assert.ok(luma(stops.at(-1)) - luma(stops[0]) >= 50);
 });
