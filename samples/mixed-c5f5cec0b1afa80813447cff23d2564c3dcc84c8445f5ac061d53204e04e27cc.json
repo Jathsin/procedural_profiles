@@ -1,0 +1,57 @@
+{
+  "version": 6,
+  "seed": "c5f5cec0b1afa80813447cff23d2564c3dcc84c8445f5ac061d53204e04e27cc",
+  "colour": {
+    "space": "HSB",
+    "relationship": "analogous",
+    "count": 5,
+    "stops": [
+      {
+        "position": 0,
+        "h": 337.2370016045862,
+        "s": 68.88559286041604,
+        "b": 56.99468449538521
+      },
+      {
+        "position": 0.25,
+        "h": 343.9023599400631,
+        "s": 70.97220477478045,
+        "b": 78.33993063362904
+      },
+      {
+        "position": 0.5,
+        "h": 350.56771827553985,
+        "s": 81.90234727245542,
+        "b": 73.42426644600015
+      },
+      {
+        "position": 0.75,
+        "h": 357.2330766110167,
+        "s": 67.43267275674515,
+        "b": 60.72218111946698
+      },
+      {
+        "position": 1,
+        "h": 3.8984349464935804,
+        "s": 69.42434059145721,
+        "b": 83.92428814598165
+      }
+    ]
+  },
+  "preset": {
+    "type": "gradient",
+    "kind": "mixed"
+  },
+  "variation": {
+    "distribution": "uniform",
+    "noise": null,
+    "colourJitter": 0
+  },
+  "texture": {
+    "type": "soft-marks",
+    "count": 134,
+    "minRadius": 0.06,
+    "maxRadius": 0.16
+  },
+  "elements": []
+}

@@ -49,8 +49,9 @@ Accept a string, not a number. It may contain an object ID, name, or existing ha
 Hash it to obtain avalanche behaviour: small input changes should substantially
 change the seed. The user may revise this behaviour later.
 
-Whether to preserve or normalise case, whitespace, and Unicode is still open.
-Do not silently introduce input normalisation.
+Confirmed: preserve the exact string, including case, whitespace, and Unicode
+normalisation. Empty strings are accepted. Reject malformed Unicode rather than
+silently replacing it during UTF-8 encoding.
 
 ### 2. Seeded randomness
 
@@ -109,9 +110,9 @@ geometry. Colour count refers to selected palette colours or gradient stops,
 not the number of distinct pixel colours after interpolation and rendering.
 A two-stop gradient can contain many intermediate colours.
 
-For the first gradient milestone, two seeded endpoint colours with constrained
-HSB relationships are recommended. This is not yet a user-approved colour count
-or palette rule. Variable counts and more elaborate selection can follow after
+Confirmed for the first recipe: two seeded endpoint colours, with a
+monochromatic or analogous relationship. Initial numeric HSB ranges and equal
+relationship weights are provisional experimental defaults documented in README.md. Variable counts and more elaborate selection can follow after
 the initial palette is reviewed across sample seeds.
 
 ### 4. Presets and drawing texture
@@ -153,8 +154,8 @@ Recommendations are not additional user decisions.
 | Language | JavaScript | User's proposed implementation language. |
 | Execution | Our infrastructure | Confirmed; no browser generation requirement. |
 | Runtime | Node.js | Recommended to run JavaScript outside a browser; no HTTP service required. |
-| Hashing | SHA-256 through Node crypto | Recommended; hashing for avalanche behaviour is confirmed, exact hash is not. |
-| Pseudorandom generation | seedrandom | Recommended; exact generator and stream scheme remain to be confirmed. |
+| Hashing | SHA-256 through Node crypto | Confirmed for milestone 1. |
+| Pseudorandom generation | seedrandom | Confirmed for milestone 1, with independent named streams. |
 | Distributions and geometry | JavaScript Math plus small helpers | Recommended for simplicity; distributions remain separate from noise. |
 | Coherent noise | noisejs | Accepted by the user; provides Perlin and simplex noise. |
 | Recipe | Plain JavaScript | Recommended; contains selection rules without drawing dependencies. |
@@ -205,8 +206,13 @@ not required at this stage.
       samples/                    Generated PNG/JPEG examples
 
 The public entry point accepts a string ID and, if agreed, configuration options.
-It returns image data. Exact options, dimensions, synchronous/asynchronous API,
-and return type remain to be settled before they are needed.
+generateRecipe(input) synchronously returns a plain recipe object.
+generateImage(input, { width, height }) asynchronously returns PNG bytes.
+Dimensions default to 512 × 512 and are bounded from 1 to 2048.
+
+Milestone 1 also adds src/math/distributions.js, scripts/inspect-recipe.js,
+test/recipe.test.js, package.json, and a dependency lockfile. The renderer, gradient preset package, sample runner, and maths colour helpers
+are now implemented. Noise, elements, and post-processing files remain deferred.
 
 ## Milestones, ordered by increasing complexity
 
@@ -221,16 +227,65 @@ palette count and relationship rules, and the smallest useful gradient example.
 Establish a small fixed set of review IDs,
 including similar strings. Keep the first phase's scope concrete and limited.
 
-### 1. Reproducible foundation and a simple gradient
+### 1. String-to-recipe foundation (implemented)
 
-Connect string input, hashing, seeded randomness, a minimal colour recipe, the
-gradient preset, rendering, and export. Use a simple linear gradient first,
-with the agreed multi-colour palette specification (two endpoints recommended).
-The sample runner saves images into samples/.
+The user revised the first milestone to produce parameters only. Implement
+SHA-256, independent seedrandom streams, range/integer/weighted/optional selection
+helpers, and a versioned linear-gradient recipe with two endpoint colours.
+Preserve exact strings; select monochromatic or analogous relationships.
+Return inspectable JSON through generateRecipe(input) in pipeline.js.
 
-Review: repeated calls reproduce the result in the same environment; similar IDs
-produce different seeds and varied recipes; exported images open correctly.
-This is the proposed first working version, not a finished aesthetic system.
+No rendering, noise sampling, textures, decorations, or image export in this phase.
+The inspection script prints JSON; samples/object-123.json is a review example.
+
+Review: repeatability, a known SHA-256 vector, exact input handling, stream
+independence, selection boundaries, and compatible recipes over 1,000 inputs.
+The original five recipe tests passed; subsequent rendering work expands the suite. This is not a uniqueness or visual-quality proof.
+
+### 1b. Gradient rendering with two equally likely modes (implemented)
+
+The user chose an evenly mixed colour field resembling the reference, while
+requiring it to be equally likely as a linear transition. Recipe version 2
+therefore selects linear or mixed mode with equal weights. This is probability,
+not an exact 50/50 quota per batch. Both retain the two-colour monochromatic or
+analogous palette options; no palette is hard-coded to green/turquoise.
+
+Current recipe version 6 uses only soft marks. The hard-edged circle feature is
+removed at the user's request. The seed still chooses equally between directional
+and evenly mixed colour arrangements. Every mark fades to transparency at its edge;
+no plain smooth gradient or post-processing blur is used.
+
+The seed selects either 350–650 medium marks (radii 2.5–7% of the smaller image
+dimension), or 100–220 broad marks (radii 6–16%), with equal initial weights.
+These are adjustable experimental ranges. Larger marks cover more pixels, so fewer
+marks do not automatically imply faster rendering.
+
+Palettes now contain 3–5 evenly positioned stops. Monochromatic or analogous hue
+relationships are retained; analogous stops span 20–45°. Interior stops sample
+saturation and brightness independently within the palette bounds. Rendering
+interpolates between surrounding stops so every selected colour contributes.
+The renderer remains @napi-rs/canvas with PNG export, 512 × 512 by default.
+
+The user approved an experiment with saturation 65–90% and at least 25 brightness
+percentage points between endpoints. Both arrangements now share these constraints:
+start brightness 35–60%, end brightness start+25 to 95%, retaining monochromatic
+and analogous relationships. These endpoint constraints are not guarantees of
+perceptual contrast in the final blended image.
+
+The user confirmed the reference-style field of marks as the target, distributed
+either evenly in colour or following a directional colour transition. The internal
+`linear` name refers only to this directional arrangement, never a plain fill.
+Version 5 adds seeded colour jitter of ±0.15 in palette position for directional
+marks, clamped to [0, 1], to keep local variation. A separate colour-variation
+stream preserves geometry. The same sample inputs were regenerated for review.
+
+pipeline.js now exposes asynchronous generateImage(input, options), returning PNG
+bytes, alongside generateRecipe(input). Only the sample script writes files.
+It saves PNG/JSON pairs using safe hash-based filenames, sequentially.
+
+Verification: 13 tests pass, covering recipes and both PNG modes; rendered samples
+were visually inspected. Older recipes must be regenerated for the version 6 renderer.
+Noise, decorative elements, other presets, JPEG, and post-processing remain deferred.
 
 ### 2. Controlled variation within gradients
 
@@ -346,8 +401,9 @@ Tools discussed:
 
 ## Current status
 
-Planning only. String input, hashing for avalanche behaviour, infrastructure-side
-generation, noisejs, separation of noise/distributions, preset-owned textures,
-the presets package, a single elements module, and deferred post-processing are
-established. Remaining recommendations need user agreement when relevant.
-No implementation is authorised by this document.
+Milestones 1 and 1b are implemented: exact string → SHA-256 → seeded recipe →
+equally likely linear or evenly mixed gradient → PNG. README.md explains each
+module, execution commands, and the provisional artistic parameters. Thirteen tests
+pass and both rendered modes have been visually inspected. Later work remains
+subject to explicit user requests. This document records the current scope and
+does not authorise implementing remaining milestones automatically.
