@@ -9,7 +9,7 @@ await mkdir(directory, { recursive: true });
 for (const id of ids) {
   const recipe = generateRecipe(id);
   // Never use the input as a filesystem path. Full hashes keep filenames safe.
-  const name = `${recipe.preset.kind ?? recipe.preset.type}-${createHash('sha256').update(id).digest('hex')}`;
+  const name = `${recipe.texture.finish}-${createHash('sha256').update(id).digest('hex')}`;
   const start = performance.now();
   const image = await generateImage(id);
   await writeFile(new URL(`${name}.png`, directory), image);

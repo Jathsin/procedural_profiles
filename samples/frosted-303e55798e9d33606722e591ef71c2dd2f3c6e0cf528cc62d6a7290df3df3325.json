@@ -1,0 +1,79 @@
+{
+  "version": 16,
+  "seed": "303e55798e9d33606722e591ef71c2dd2f3c6e0cf528cc62d6a7290df3df3325",
+  "colour": {
+    "space": "HSB",
+    "relationship": "analogous",
+    "hues": [
+      101.24745586902213,
+      135.8936298691557,
+      170.53980386928924
+    ],
+    "count": 2,
+    "stops": [
+      {
+        "position": 0,
+        "h": 101.24745586902213,
+        "s": 68.44193508385854,
+        "b": 90.69958770026729
+      },
+      {
+        "position": 1,
+        "h": 135.8936298691557,
+        "s": 60.06048696223744,
+        "b": 90.32105269418807
+      }
+    ]
+  },
+  "preset": {
+    "type": "soft-forms",
+    "angleDegrees": 207.8913512417313
+  },
+  "variation": {
+    "distribution": "uniform",
+    "noise": null,
+    "grain": 14
+  },
+  "texture": {
+    "type": "soft-arcs",
+    "forms": [
+      {
+        "directionDegrees": 142.74467190096237,
+        "radius": 1.4231663344391015,
+        "edge": -0.2419692113944505,
+        "colour": {
+          "h": 170.53980386928924,
+          "s": 72.80066451116828,
+          "b": 74.7426651740437
+        },
+        "opacity": 0.8711428174116039,
+        "softBlur": 0.1351399802974687,
+        "crispBlur": 0.012996955810495479,
+        "crispFadeSide": 1,
+        "crispFadeEnd": 0.7414155112983754
+      },
+      {
+        "directionDegrees": 36.60212115675854,
+        "radius": 2.0879115826442387,
+        "edge": -0.03156540899045529,
+        "colour": {
+          "h": 135.8936298691557,
+          "s": 17.725039301816036,
+          "b": 99.9876962269074
+        },
+        "opacity": 0.5872992040515614,
+        "softBlur": 0.14435617998225936,
+        "crispBlur": 0.019735190853092527,
+        "crispFadeSide": -1,
+        "crispFadeEnd": 0.43796329211805624
+      }
+    ],
+    "finish": "frosted",
+    "bubbles": {
+      "count": 4308,
+      "minRadius": 0.01,
+      "maxRadius": 0.03
+    }
+  },
+  "elements": []
+}

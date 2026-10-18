@@ -5,11 +5,11 @@ import { generateImage, generateRecipe } from '../pipeline.js';
 import { renderRecipe } from '../src/renderer.js';
 import { hsbToRGB, interpolateHSB, samplePalette } from '../src/math/colour.js';
 
-// The first object-N recipe that uses the given preset.
-function recipeOfType(type) {
+// The first object-N recipe with the given finish.
+function recipeWithFinish(finish) {
   for (let i = 0; ; i++) {
     const recipe = generateRecipe(`object-${i}`);
-    if (recipe.preset.type === type) return recipe;
+    if (recipe.texture.finish === finish) return recipe;
   }
 }
 
@@ -29,8 +29,8 @@ test('HSB conversion and hue wrap avoid a detour around the colour wheel', () =>
   assert.equal(interpolateHSB({ h: 350, s: 50, b: 50 }, { h: 10, s: 50, b: 50 }, 0.5).h, 0);
 });
 
-test('both presets export opaque, repeatable, nonconstant PNG images', async () => {
-  for (const recipe of [recipeOfType('gradient'), recipeOfType('soft-forms')]) {
+test('both finishes export opaque, repeatable, nonconstant PNG images', async () => {
+  for (const recipe of [recipeWithFinish('smooth'), recipeWithFinish('frosted')]) {
     const options = { width: 96, height: 64 };
     const a = await renderRecipe(recipe, options);
     const b = await renderRecipe(recipe, options);
@@ -48,34 +48,14 @@ test('both presets export opaque, repeatable, nonconstant PNG images', async () 
   }
 });
 
-test('linear marks carry a left-to-right colour trend', async () => {
-  const recipe = recipeOfType('gradient');
-  recipe.preset = { type: 'gradient', kind: 'linear', angleDegrees: 0 };
-  recipe.texture = { type: 'circles', count: 600, minRadius: 0.04, maxRadius: 0.1 };
-  recipe.colour.stops = [{ position: 0, h: 0, s: 0, b: 0 }, { position: 1, h: 0, s: 0, b: 100 }];
-  const { data } = await pixels(await renderRecipe(recipe, { width: 128, height: 128 }));
-  const average = (from, to) => {
-    let sum = 0;
-    for (let y = 0; y < 128; y++) for (let x = from; x < to; x++) sum += data[(y * 128 + x) * 4];
-    return sum / (128 * (to - from));
-  };
-  assert.ok(average(96, 128) - average(0, 32) > 70);
-});
-
-test('invalid dimensions and unsupported modes fail before unbounded work', async () => {
+test('invalid dimensions and unsupported presets fail before unbounded work', async () => {
   for (const width of [0, -1, 2049, 2.5, NaN]) {
     await assert.rejects(generateImage('object-0', { width }), RangeError);
   }
-  const recipe = recipeOfType('gradient');
-  recipe.texture.count = Infinity;
+  const recipe = recipeWithFinish('frosted');
+  recipe.texture.bubbles.count = Infinity;
   await assert.rejects(renderRecipe(recipe), RangeError);
-  recipe.preset.kind = 'unknown';
-  await assert.rejects(renderRecipe(recipe), RangeError);
-});
-
-test('the removed soft-mark texture is rejected', async () => {
-  const recipe = recipeOfType('gradient');
-  recipe.texture.type = 'soft-marks';
+  recipe.preset.type = 'gradient'; // the retired circles preset
   await assert.rejects(renderRecipe(recipe), RangeError);
 });
 
@@ -90,27 +70,9 @@ test('multi-colour sampling includes interior colours and wraps hue', () => {
   assert.deepEqual(samplePalette(stops, 1), { h: 30, s: 75, b: 65 });
 });
 
-test('circles are opaque with crisp edges', async () => {
-  const { drawGradient } = await import('../src/presets/gradient.js');
-  const recipe = recipeOfType('gradient');
-  recipe.preset = { type: 'gradient', kind: 'mixed' };
-  recipe.colour.stops = [{ position: 0, h: 0, s: 0, b: 0 }, { position: 1, h: 0, s: 0, b: 100 }];
-  recipe.texture = { type: 'circles', count: 1, minRadius: 0.2, maxRadius: 0.3 };
-  const canvas = createCanvas(128, 128);
-  const context = canvas.getContext('2d');
-  // x, y, radius at the middle of their ranges (centre 64,64; radius 32), then a near-white colour.
-  const values = [0.5, 0.5, 0.5, 0.999];
-  drawGradient(context, recipe, 128, 128, () => values.shift());
-  const { data } = context.getImageData(0, 0, 128, 128);
-  const red = x => data[(64 * 128 + x) * 4];
-  for (let x = 64; x < 95; x++) assert.ok(red(x) > 250); // uniform interior
-  assert.equal(red(97), 128); // grey background immediately outside the edge at x = 96
-  assert.equal(data[(64 * 128 + 64) * 4 + 3], 255);
-});
-
 // A soft-forms recipe with a flat black base, no grain, and one white form.
-function oneArc(form) {
-  const recipe = recipeOfType('soft-forms');
+function oneArc(form, finish = 'smooth') {
+  const recipe = recipeWithFinish(finish);
   recipe.preset.angleDegrees = 0;
   recipe.colour.stops = [{ position: 0, h: 0, s: 0, b: 0 }, { position: 1, h: 0, s: 0, b: 0 }];
   recipe.variation.grain = 0;
@@ -171,7 +133,31 @@ test('invalid soft-form parameters are rejected', async () => {
   const empty = oneArc({});
   empty.texture.forms = [];
   await assert.rejects(renderRecipe(empty), RangeError);
-  const old = oneArc({});
-  old.texture.type = 'blurred-forms';
-  await assert.rejects(renderRecipe(old), RangeError);
+  for (const type of ['blurred-forms', 'soft-marks', 'circles']) {
+    const old = oneArc({});
+    old.texture.type = type;
+    await assert.rejects(renderRecipe(old), RangeError);
+  }
+  const unknown = oneArc({});
+  unknown.texture.finish = 'glossy';
+  await assert.rejects(renderRecipe(unknown), RangeError);
+});
+
+test('frosted bubbles take the colours of the regions underneath', async () => {
+  // A white region covering the right half of a black image (edge through the centre).
+  const recipe = oneArc({}, 'frosted');
+  const image = await renderRecipe(recipe, { width: 128, height: 128 });
+  const { data } = await pixels(image);
+  const red = (x, y) => data[(y * 128 + x) * 4];
+  for (const y of [16, 64, 112]) {
+    assert.ok(red(16, y) < 10); // deep inside the black base
+    assert.ok(red(112, y) > 245); // deep inside the white region
+  }
+  // Near the edge, bubbles of both colours overlap it, unlike the smooth arc.
+  const smooth = await pixels(await renderRecipe(oneArc({}), { width: 128, height: 128 }));
+  let differing = 0;
+  for (let y = 0; y < 128; y++) for (let x = 56; x < 72; x++) {
+    if (Math.abs(red(x, y) - smooth.data[(y * 128 + x) * 4]) > 128) differing++;
+  }
+  assert.ok(differing > 50);
 });

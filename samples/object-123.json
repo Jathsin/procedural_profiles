@@ -1,5 +1,5 @@
 {
-  "version": 15,
+  "version": 16,
   "seed": "cdd8a1f4e8372221bcdf201309a40cb831d4a1bba9219e351f4e49337eeba622",
   "colour": {
     "space": "HSB",
@@ -27,7 +27,7 @@
   },
   "preset": {
     "type": "soft-forms",
-    "angleDegrees": 83.4304794415054
+    "angleDegrees": 275.1633494056176
   },
   "variation": {
     "distribution": "uniform",
@@ -67,7 +67,8 @@
         "crispFadeSide": -1,
         "crispFadeEnd": 0.5125988232687608
       }
-    ]
+    ],
+    "finish": "smooth"
   },
   "elements": []
 }

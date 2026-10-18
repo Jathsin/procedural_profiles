@@ -408,9 +408,9 @@ Tools discussed:
 
 Milestones 1 and 1b are implemented: exact string → SHA-256 → seeded recipe →
 equally likely linear or evenly mixed gradient → PNG. The current recipe is
-version 15 (see the sections below), which supersedes the version 9/10 sections.
+version 16 (see the sections below), which supersedes the version 9/10 sections.
 README.md explains each module, execution commands, and the provisional artistic
-parameters. Seventeen tests pass and both rendered modes have been visually inspected. Later work remains
+parameters. Fourteen tests pass and both rendered modes have been visually inspected. Later work remains
 subject to explicit user requests. This document records the current scope and
 does not authorise implementing remaining milestones automatically.
 
@@ -470,7 +470,7 @@ monochromatic was dropped because with fixed S/B it would be a flat colour. The
 version 10 lightness rule is not used, though luma() remains in the colour helpers.
 Linear mode jitters each circle's gradient position by ±0.08, like Hobbs's offset.
 
-## Soft-forms preset (recipe versions 12–15, current)
+## Soft-forms preset (recipe versions 12–16, current)
 
 The user wants a second look resembling soft abstract product gradients (reference
 screenshots showed large blurred wedges, bands and ribbons with grain). The user
@@ -513,3 +513,16 @@ fades along the arc, and seeded grain (±7, equal across channels) inside the pr
 Grain lives in the preset rather than the deferred post-processing module because it
 is part of this preset's texture. Colour harmonies, bands and wedges were removed.
 Saturation was left as in A2 at the user's request (some results are quite vivid).
+
+Version 16. The user judged the circles ("bubbles") preset aesthetically far worse
+than soft forms and asked for advice, then for experiments (throwaway scripts; output
+in samples/soft-forms-review/variants/). Colouring bubbles from a hidden soft-forms
+map gave structure; jitter and size hierarchy were tried and not chosen. The user
+preferred more, smaller bubbles because the image improved with distance, and chose
+to make bubbles a texture option of soft forms rather than a separate preset.
+Decisions: the gradient (circles) preset is retired; every recipe is soft forms with
+a `finish` chosen 50/50: smooth or frosted (3,200–4,800 bubbles, radius 1–3%, colours
+from a 128 px map of the regions); both get the same grain. "Small" bubbles were
+chosen by the assistant because the user did not pick a size; tiny bubbles converge
+on the smooth finish. interpolateHSB, samplePalette, hsbToCSS and luma remain in
+src/math/colour.js but are currently unused.

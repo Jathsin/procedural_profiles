@@ -1,21 +1,5 @@
 import { uniform, weightedChoice, chance, integer } from './math/distributions.js';
 
-// Pastel, hue-only palettes after Tyler Hobbs's "Working with Color" examples:
-// saturation and brightness are fixed within an image; only the hue varies.
-// Experimental ranges, not final aesthetic rules.
-export const COLOUR_RULES = Object.freeze({
-  saturationMin: 35, saturationMax: 50,
-  brightnessMin: 65, brightnessMax: 80,
-  hueSpanMin: 40, hueSpanMax: 90,
-});
-
-// Small crisp circles at the size of the references; more of them keep the image covered.
-// Radii are fractions of the smaller image dimension.
-export const TEXTURE_RULES = Object.freeze({
-  countMin: 800, countMax: 1200,
-  minRadius: 0.02, maxRadius: 0.06,
-});
-
 // Soft forms: two or three large regions bounded by arcs of huge off-image circles,
 // so every edge follows an evenly rounded curve. Radii, offsets and blur radii are
 // fractions of the smaller image dimension, so the look survives resizing.
@@ -32,6 +16,9 @@ export const SOFT_FORM_RULES = Object.freeze({
   crispFadeMin: 0.4, crispFadeMax: 0.8,
   // Seeded per-pixel noise, in 0–255 channel units (peak to peak).
   grain: 14,
+  // Frosted finish: small crisp bubbles coloured from a hidden map of the regions.
+  bubbleCountMin: 3200, bubbleCountMax: 4800,
+  bubbleRadiusMin: 0.01, bubbleRadiusMax: 0.03,
 });
 
 // Three neighbouring hues, each used by its own region, in three tones.
@@ -47,41 +34,17 @@ export const SOFT_FORM_COLOUR_RULES = Object.freeze({
 });
 
 export function chooseRecipe(seed, streams) {
-  const type = weightedChoice(streams.preset, [
-    { value: 'gradient', weight: 1 },
-    { value: 'soft-forms', weight: 1 },
-  ]);
-  let colour, parts;
-  if (type === 'gradient') {
-    const stops = choosePalette(streams.colour);
-    colour = { space: 'HSB', relationship: 'analogous', count: stops.length, stops };
-    parts = chooseGradient(streams);
-  } else {
-    const { relationship, hues, stops } = chooseSoftFormPalette(streams.colour);
-    colour = { space: 'HSB', relationship, hues, count: stops.length, stops };
-    parts = chooseSoftForms(streams, hues);
-  }
+  const { relationship, hues, stops } = chooseSoftFormPalette(streams.colour);
+  const parts = chooseSoftForms(streams, hues);
   return {
-    version: 15,
+    version: 16,
     seed,
-    colour,
+    colour: { space: 'HSB', relationship, hues, count: stops.length, stops },
     preset: parts.preset,
     variation: parts.variation,
     texture: parts.texture,
     elements: [],
   };
-}
-
-function choosePalette(c) {
-  const r = COLOUR_RULES;
-  const hue = uniform(c, 0, 360);
-  const span = uniform(c, r.hueSpanMin, r.hueSpanMax) * (chance(c, 0.5) ? 1 : -1);
-  const s = uniform(c, r.saturationMin, r.saturationMax);
-  const b = uniform(c, r.brightnessMin, r.brightnessMax);
-  return [
-    { position: 0, h: hue, s, b },
-    { position: 1, h: (hue + span + 360) % 360, s, b },
-  ];
 }
 
 function chooseSoftFormPalette(c) {
@@ -99,27 +62,6 @@ function chooseTone(c, name) {
   return {
     s: uniform(c, tone.saturationMin, tone.saturationMax),
     b: uniform(c, tone.brightnessMin, tone.brightnessMax),
-  };
-}
-
-function chooseGradient(streams) {
-  const mode = weightedChoice(streams.preset, [
-    { value: 'linear', weight: 1 },
-    { value: 'mixed', weight: 1 },
-  ]);
-  const mixed = mode === 'mixed';
-  const t = TEXTURE_RULES;
-  return {
-    preset: { type: 'gradient', kind: mode,
-      ...(mixed ? {} : { angleDegrees: uniform(streams.preset, 0, 360) }) },
-    // Linear marks shift their gradient position slightly, like Hobbs's (random y (+ y 100)).
-    variation: { distribution: 'uniform', noise: null, colourJitter: mixed ? 0 : 0.08 },
-    texture: {
-      type: 'circles',
-      count: integer(streams.texture, t.countMin, t.countMax),
-      minRadius: t.minRadius,
-      maxRadius: t.maxRadius,
-    },
   };
 }
 
@@ -147,9 +89,25 @@ function chooseSoftForms(streams, hues) {
     crispFadeSide: chance(random, 0.5) ? 1 : -1,
     crispFadeEnd: uniform(random, f.crispFadeMin, f.crispFadeMax),
   }));
+  // Smooth regions, or the same regions rebuilt from small bubbles.
+  const finish = weightedChoice(random, [
+    { value: 'smooth', weight: 1 },
+    { value: 'frosted', weight: 1 },
+  ]);
   return {
     preset: { type: 'soft-forms', angleDegrees: uniform(streams.preset, 0, 360) },
     variation: { distribution: 'uniform', noise: null, grain: f.grain },
-    texture: { type: 'soft-arcs', forms },
+    texture: {
+      type: 'soft-arcs',
+      forms,
+      finish,
+      ...(finish === 'frosted' ? {
+        bubbles: {
+          count: integer(random, f.bubbleCountMin, f.bubbleCountMax),
+          minRadius: f.bubbleRadiusMin,
+          maxRadius: f.bubbleRadiusMax,
+        },
+      } : {}),
+    },
   };
 }
