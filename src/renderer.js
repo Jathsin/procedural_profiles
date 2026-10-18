@@ -9,7 +9,7 @@ export async function renderRecipe(recipe, { width = 512, height = 512 } = {}) {
       throw new RangeError('Image dimensions must be integers between 1 and 2048.');
     }
   }
-  if (recipe.version !== 11) throw new RangeError('Renderer requires recipe version 11.');
+  if (recipe.version !== 15) throw new RangeError('Renderer requires recipe version 15.');
   const canvas = createCanvas(width, height);
   drawPreset(canvas.getContext('2d'), recipe, width, height, createDrawingRandom(recipe.seed));
   return canvas.encode('png');

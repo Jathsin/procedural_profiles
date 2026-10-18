@@ -38,37 +38,84 @@ test('consuming texture changes only texture choices, not colour or composition'
   assert.notEqual(a.texture(), a.elements());
 });
 
-test('1000 seeds yield pastel, hue-only palettes and small crisp circles', () => {
+const TONES = {
+  deep: { s: [70, 90], b: [68, 82] },
+  vivid: { s: [55, 85], b: [90, 100] },
+  light: { s: [8, 20], b: [97, 100] },
+};
+const isTone = (colour, name) => {
+  const { s, b } = TONES[name];
+  return colour.s >= s[0] && colour.s < s[1] && colour.b >= b[0] && colour.b < b[1];
+};
+const hueDistance = (a, b) => Math.min(Math.abs(a - b), 360 - Math.abs(a - b));
+
+test('1000 seeds yield bounded palettes and parameters for both presets', () => {
+  const types = { gradient: 0, 'soft-forms': 0 };
   const modes = { linear: 0, mixed: 0 };
   for (let i = 0; i < 1000; i++) {
     const recipe = generateRecipe(`object-${i}`);
     const { colour, preset, texture } = recipe;
-    assert.equal(recipe.version, 11);
-    assert.equal(colour.relationship, 'analogous');
-    assert.equal(colour.stops.length, 2);
-    assert.equal(preset.type, 'gradient');
-    modes[preset.kind]++;
-    if (preset.kind === 'linear') assert.ok(preset.angleDegrees >= 0 && preset.angleDegrees < 360);
-    else assert.equal(preset.angleDegrees, undefined);
-    const [start, end] = colour.stops;
-    assert.deepEqual([start.position, end.position], [0, 1]);
-    // Only the hue varies within an image.
-    assert.equal(start.s, end.s);
-    assert.equal(start.b, end.b);
-    assert.ok(start.s >= 35 && start.s < 50);
-    assert.ok(start.b >= 65 && start.b < 80);
+    assert.equal(recipe.version, 15);
+    assert.equal(colour.stops.length, colour.count);
     for (const stop of colour.stops) assert.ok(stop.h >= 0 && stop.h < 360);
+    const start = colour.stops[0], end = colour.stops.at(-1);
+    assert.deepEqual([start.position, end.position], [0, 1]);
     const delta = Math.abs(start.h - end.h);
     const distance = Math.min(delta, 360 - delta);
-    assert.ok(distance >= 40 - 1e-10 && distance <= 90 + 1e-10);
+    if (preset.type === 'gradient') {
+      // Pastel and hue-only: saturation and brightness are shared by both stops.
+      assert.equal(colour.relationship, 'analogous');
+      assert.equal(colour.count, 2);
+      assert.equal(start.s, end.s);
+      assert.equal(start.b, end.b);
+      assert.ok(start.s >= 35 && start.s < 50);
+      assert.ok(start.b >= 65 && start.b < 80);
+      assert.ok(distance >= 40 - 1e-10 && distance <= 90 + 1e-10);
+    } else {
+      // Three neighbouring hues; the base gradient uses vivid tones of the first two.
+      assert.equal(colour.relationship, 'analogous');
+      assert.equal(colour.count, 2);
+      assert.ok(isTone(start, 'vivid') && isTone(end, 'vivid'));
+      assert.deepEqual([start.h, end.h], colour.hues.slice(0, 2));
+      const span = hueDistance(colour.hues[0], colour.hues[2]);
+      assert.ok(span >= 50 - 1e-9 && span <= 110 + 1e-9);
+      assert.ok(Math.abs(hueDistance(colour.hues[0], colour.hues[1]) - span / 2) < 1e-9);
+    }
     assert.equal(recipe.variation.noise, null);
-    assert.equal(texture.type, 'circles');
-    assert.ok(texture.count >= 800 && texture.count <= 1200);
-    assert.deepEqual([texture.minRadius, texture.maxRadius], [0.02, 0.06]);
     assert.deepEqual(recipe.elements, []);
+    types[preset.type]++;
+    if (preset.type === 'gradient') {
+      modes[preset.kind]++;
+      if (preset.kind === 'linear') assert.ok(preset.angleDegrees >= 0 && preset.angleDegrees < 360);
+      else assert.equal(preset.angleDegrees, undefined);
+      assert.equal(texture.type, 'circles');
+      assert.ok(texture.count >= 800 && texture.count <= 1200);
+      assert.deepEqual([texture.minRadius, texture.maxRadius], [0.02, 0.06]);
+    } else {
+      assert.equal(preset.type, 'soft-forms');
+      assert.ok(preset.angleDegrees >= 0 && preset.angleDegrees < 360);
+      assert.equal(recipe.variation.grain, 14);
+      assert.equal(texture.type, 'soft-arcs');
+      assert.ok(texture.forms.length >= 2 && texture.forms.length <= 3);
+      // Regions: deep third hue, translucent light middle hue, vivid third hue.
+      const roles = [['deep', 2, 0.85, 1], ['light', 1, 0.51, 0.6], ['vivid', 2, 0.85, 1]];
+      texture.forms.forEach((form, index) => {
+        const [tone, hue, opacityMin, opacityMax] = roles[index];
+        assert.ok(isTone(form.colour, tone));
+        assert.equal(form.colour.h, colour.hues[hue]);
+        assert.ok(form.opacity >= opacityMin - 1e-9 && form.opacity < opacityMax);
+        assert.ok(form.directionDegrees >= 0 && form.directionDegrees < 360);
+        assert.ok(form.radius >= 1.2 && form.radius < 3);
+        assert.ok(form.edge >= -0.3 && form.edge < 0.3);
+        assert.ok(form.softBlur >= 0.08 && form.softBlur < 0.15);
+        assert.ok(form.crispBlur >= 0.01 && form.crispBlur < 0.03);
+        assert.ok([1, -1].includes(form.crispFadeSide));
+        assert.ok(form.crispFadeEnd >= 0.4 && form.crispFadeEnd < 0.8);
+      });
+    }
   }
-  assert.ok(modes.mixed > 400 && modes.mixed < 600);
-  assert.equal(modes.linear + modes.mixed, 1000);
+  assert.ok(types.gradient > 400 && types.gradient < 600);
+  assert.ok(modes.mixed > 0.4 * types.gradient && modes.mixed < 0.6 * types.gradient);
 });
 
 test('selection helpers handle boundaries and reject invalid configuration', () => {
@@ -88,11 +135,17 @@ test('selection helpers handle boundaries and reject invalid configuration', () 
 });
 
 
-test('mode weights divide the random interval equally', () => {
+test('preset and mode weights divide the random interval equally', () => {
+  const choose = values => {
+    const { seed, streams } = createRandomStreams('weight-boundaries');
+    streams.preset = () => values.shift() ?? 0.5;
+    return chooseRecipe(seed, streams).preset;
+  };
+  for (const [value, expected] of [[0, 'gradient'], [0.49999, 'gradient'], [0.5, 'soft-forms'], [0.99999, 'soft-forms']]) {
+    assert.equal(choose([value]).type, expected);
+  }
+  // First value selects the gradient preset; the second selects its mode.
   for (const [value, expected] of [[0, 'linear'], [0.49999, 'linear'], [0.5, 'mixed'], [0.99999, 'mixed']]) {
-    const { seed, streams } = createRandomStreams('mode-boundaries');
-    streams.preset = () => value;
-    assert.equal(chooseRecipe(seed, streams).preset.kind, expected);
+    assert.equal(choose([0, value]).kind, expected);
   }
 });
-

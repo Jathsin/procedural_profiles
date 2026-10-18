@@ -408,9 +408,9 @@ Tools discussed:
 
 Milestones 1 and 1b are implemented: exact string → SHA-256 → seeded recipe →
 equally likely linear or evenly mixed gradient → PNG. The current recipe is
-version 11 (see the section below), which supersedes the version 9/10 sections.
+version 15 (see the sections below), which supersedes the version 9/10 sections.
 README.md explains each module, execution commands, and the provisional artistic
-parameters. Thirteen tests pass and both rendered modes have been visually inspected. Later work remains
+parameters. Seventeen tests pass and both rendered modes have been visually inspected. Later work remains
 subject to explicit user requests. This document records the current scope and
 does not authorise implementing remaining milestones automatically.
 
@@ -448,7 +448,7 @@ median gap rose from 59 to 68. Rendered contrast improved only slightly, because
 most pixels in low-contrast images show the background midpoint colour: mark
 placement, the background fill and feathering limit contrast, not the palette.
 
-## Hobbs-style pastel circles (recipe version 11, current)
+## Hobbs-style pastel circles (recipe version 11)
 
 The user rejected the version 10 samples and chose the first three images of Tyler
 Hobbs's "Working with Color in Generative Art" as the target, explicitly excluding
@@ -469,3 +469,47 @@ Palettes are two stops sharing S/B with a hue span of 40–90° in either direct
 monochromatic was dropped because with fixed S/B it would be a flat colour. The
 version 10 lightness rule is not used, though luma() remains in the colour helpers.
 Linear mode jitters each circle's gradient position by ±0.08, like Hobbs's offset.
+
+## Soft-forms preset (recipe versions 12–15, current)
+
+The user wants a second look resembling soft abstract product gradients (reference
+screenshots showed large blurred wedges, bands and ribbons with grain). The user
+proposed overlapping soft-edged marks of the right size and shape; decisions: a new
+preset (src/presets/soft-forms.js), not an extension of gradient; commit version 11
+first; start small. The recipe now chooses gradient or soft-forms with equal weights.
+
+First step only: 3–6 large bands or wedges sharing a main direction (±35°), each with
+its own blur (2–12% of the smaller dimension, via Canvas `context.filter`), opacity
+(50–90%) and palette colour, over a base gradient. The recipe lists every form
+explicitly. It shares the pastel palette, so results are low in contrast.
+Planned next steps, each to be reviewed separately: palette with lightness contrast
+and light highlights, then film grain. Brand caution: the style is associated with
+another company's branding, so palette and shape rules should become distinctive.
+
+Version 13 (palette step, approved by the user): soft forms use three tones,
+deep (S 65–90, B 70–85) → mid (S 35–60, B 85–95) → light (S 3–15, B 95–100), with
+the hue drifting 40–120°. Measured from the references: brightness stays high and
+contrast comes mainly from saturation. The base gradient passes through all stops.
+The gradient preset keeps its pastel palette. Hue still spans the whole wheel; the
+references are cool-toned, and warm saturated results look louder (open choice).
+
+Version 14 (user request: more colour contrast, "blue and orange", chosen by colour
+theory): soft forms pick analogous, complementary, split-complementary or triadic
+with equal weights. The base gradient stays in the dominant hue (deep → mid → light);
+each form gets an explicit HSB colour, dominant hue with 50% probability, else an
+accent, in a deep/mid/light tone. The first form is always a deep or mid accent.
+Distant hues are never interpolated (rainbow or grey "mud"); they meet only via
+blurred translucent edges. Film grain is next, pending the user's go-ahead.
+
+Version 15 (current soft forms). After the user found the shapes too evident and the
+complementary accents unconvincing, throwaway variants were compared (scratch script,
+output in samples/soft-forms-review/variants/). Measured finding: edge sharpness was
+not the problem; complete outlines (parallel band edges, wedge tips) and translucent
+mixing were. The user chose "A2" with a softer light colour: 2–3 nearly opaque regions
+bounded by arcs of huge off-image circles (evenly rounded trajectories, explicitly
+requested), three neighbouring hues (span 50–110°), deep / translucent light glow /
+vivid region tones over a two-hue vivid background, a soft pass plus a crisp pass that
+fades along the arc, and seeded grain (±7, equal across channels) inside the preset.
+Grain lives in the preset rather than the deferred post-processing module because it
+is part of this preset's texture. Colour harmonies, bands and wedges were removed.
+Saturation was left as in A2 at the user's request (some results are quite vivid).

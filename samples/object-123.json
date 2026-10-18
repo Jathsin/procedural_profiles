@@ -1,39 +1,73 @@
 {
-  "version": 11,
+  "version": 15,
   "seed": "cdd8a1f4e8372221bcdf201309a40cb831d4a1bba9219e351f4e49337eeba622",
   "colour": {
     "space": "HSB",
     "relationship": "analogous",
+    "hues": [
+      131.7155165343588,
+      103.2195013883221,
+      74.72348624228539
+    ],
     "count": 2,
     "stops": [
       {
         "position": 0,
-        "h": 131.71551653435878,
-        "s": 42.61861256338918,
-        "b": 69.34759355177358
+        "h": 131.7155165343588,
+        "s": 70.23722512677836,
+        "b": 92.8983957011824
       },
       {
         "position": 1,
-        "h": 85.88882462429763,
-        "s": 42.61861256338918,
-        "b": 69.34759355177358
+        "h": 103.2195013883221,
+        "s": 70.67984855532589,
+        "b": 93.68456623521355
       }
     ]
   },
   "preset": {
-    "type": "gradient",
-    "kind": "mixed"
+    "type": "soft-forms",
+    "angleDegrees": 83.4304794415054
   },
   "variation": {
     "distribution": "uniform",
     "noise": null,
-    "colourJitter": 0
+    "grain": 14
   },
   "texture": {
-    "type": "circles",
-    "count": 923,
-    "minRadius": 0.02,
-    "maxRadius": 0.06
+    "type": "soft-arcs",
+    "forms": [
+      {
+        "directionDegrees": 166.79816070516404,
+        "radius": 1.9181838171438215,
+        "edge": 0.14784373231033915,
+        "colour": {
+          "h": 74.72348624228539,
+          "s": 86.3429815541716,
+          "b": 74.20826183730873
+        },
+        "opacity": 0.948251893542432,
+        "softBlur": 0.12575595812897694,
+        "crispBlur": 0.016265796168041118,
+        "crispFadeSide": 1,
+        "crispFadeEnd": 0.7787428864012593
+      },
+      {
+        "directionDegrees": 131.21107001967786,
+        "radius": 1.2865505229881962,
+        "edge": -0.09225336746616716,
+        "colour": {
+          "h": 103.2195013883221,
+          "s": 9.118519469662266,
+          "b": 97.87168142034612
+        },
+        "opacity": 0.5434914699667878,
+        "softBlur": 0.11675510446901285,
+        "crispBlur": 0.02205645612989135,
+        "crispFadeSide": -1,
+        "crispFadeEnd": 0.5125988232687608
+      }
+    ]
   },
   "elements": []
 }

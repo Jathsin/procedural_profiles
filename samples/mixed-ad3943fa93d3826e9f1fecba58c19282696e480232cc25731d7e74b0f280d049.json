@@ -1,0 +1,39 @@
+{
+  "version": 15,
+  "seed": "ad3943fa93d3826e9f1fecba58c19282696e480232cc25731d7e74b0f280d049",
+  "colour": {
+    "space": "HSB",
+    "relationship": "analogous",
+    "count": 2,
+    "stops": [
+      {
+        "position": 0,
+        "h": 186.52421869677235,
+        "s": 47.91951202363859,
+        "b": 71.29413003088642
+      },
+      {
+        "position": 1,
+        "h": 256.9899963156189,
+        "s": 47.91951202363859,
+        "b": 71.29413003088642
+      }
+    ]
+  },
+  "preset": {
+    "type": "gradient",
+    "kind": "mixed"
+  },
+  "variation": {
+    "distribution": "uniform",
+    "noise": null,
+    "colourJitter": 0
+  },
+  "texture": {
+    "type": "circles",
+    "count": 1120,
+    "minRadius": 0.02,
+    "maxRadius": 0.06
+  },
+  "elements": []
+}

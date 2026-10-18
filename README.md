@@ -4,7 +4,11 @@ Turn an exact string into a repeatable recipe and a PNG profile image.
 
 ## What does it do now?
 
-Recipe version 11 follows the first examples in Tyler Hobbs's
+Recipe version 15 chooses between two presets with equal probability.
+
+### Gradient preset (Hobbs-style circles)
+
+The gradient preset follows the first examples in Tyler Hobbs's
 [Working with Color in Generative Art](https://www.tylerxhobbs.com/words/working-with-color-in-generative-art):
 about a thousand crisp, opaque circles whose colours differ **only in hue**. Saturation
 and brightness are fixed within each image at a calm pastel level. The circles have
@@ -15,6 +19,25 @@ A seed chooses between two colour arrangements with equal probability:
 - **Linear:** the hue progresses along a direction across the image, with a small
   random offset per circle so the transition is uneven rather than perfect.
 - **Mixed:** each circle picks a random hue from the palette's range.
+
+### Soft-forms preset
+
+Two or three large colour regions over a smooth two-hue background, in the style of
+soft abstract product gradients. Each region is a huge circle centred outside the
+image, so its visible edge is an **evenly rounded arc**. Every region is drawn twice:
+once very blurred, and once only slightly blurred but fading out along the arc, so an
+edge goes from crisp at one end to smoky at the other. Fine seeded **grain** on top
+gives a photographic texture.
+
+Colours: three **neighbouring hues** spread over 50–110°. The background blends
+vivid tones of the first two (close hues blend without turning grey). The regions
+use, in order: a deep tone of the third hue, a **light glow** of the middle hue (a
+tinted near-white drawn translucent, so it glows instead of covering), and a vivid
+tone of the third hue. Regions are nearly opaque, which keeps their colours pure.
+
+This version was chosen by the user from visual experiments (variant "A2" with a
+softer light colour), after rejecting straight bands, wedges, colour-harmony accents
+and translucent light-and-shadow overlays.
 
 Equal probability means 50/50 over random choices, not an exact quota in every
 batch. The same input always produces the same recipe and image in this version.
@@ -98,17 +121,17 @@ loading the renderer. These are local observations, not performance guarantees.
 npm test
 ```
 
-Expect 13 passing tests and zero failures. They cover exact input handling,
+Expect 15 passing tests and zero failures. They cover exact input handling,
 repeatability, independent streams, parameter ranges across 1,000 IDs, equal mode
 selection boundaries, colour conversion, PNG decoding/dimensions, opaque output,
-gradient direction, crisp circle edges, and resource bounds. They do not prove
+gradient direction, crisp circle edges, relative soft-form blur, and resource bounds. They do not prove
 aesthetic quality or unique identities for every possible input.
 
 ## What is in samples/?
 
 - PNG files: rendered images that you can open normally.
 - Matching JSON files: parameters used for those images.
-- object-123.json: a standalone example recipe, regenerated for version 11.
+- object-123.json: a standalone example recipe, regenerated for version 15.
 
 Samples are generated output, not implementation code. Only the sample script
 writes them; the generator itself does not save or cache images. Filenames stay
@@ -125,6 +148,7 @@ old version: reopen the file to see the new one.
 | src/math/colour.js | Convert HSB to RGB, interpolate colours, and estimate perceived lightness (luma). |
 | src/recipe.js | Choose the mode and its compatible colour/texture settings. |
 | src/presets/gradient.js | Draw circles with linear or mixed colour placement. Texture lives inside this preset. |
+| src/presets/soft-forms.js | Draw blurred arc-edged colour regions and grain over a base gradient. |
 | src/presets/index.js | Select the drawing implementation. |
 | src/renderer.js | Create the in-memory Canvas and encode PNG bytes. |
 | scripts/inspect-recipe.js | Print a recipe from a terminal argument. |
@@ -135,24 +159,38 @@ Canvas is the in-memory drawing surface. Skia, through @napi-rs/canvas, draws th
 pixels; PNG encoding stores them without lossy compression. The image function
 accepts optional width and height, each an integer from 1 to 2048 (default 512).
 That limit bounds a single surface's memory; consumers still control concurrency.
-A 512 × 512 image takes about 13 ms locally (an observation, not a guarantee).
+A 512 × 512 image takes about 13 ms locally with the gradient preset and about
+80 ms with soft forms, because each blur and the grain are extra passes
+(observations, not guarantees).
 
 ## Reading the recipe
 
-- `version: 11`: pastel hue-only palettes drawn with crisp circles.
+- `version: 15`: soft forms become arc-edged colour regions with grain.
 - `seed`: hash of the original input string.
-- `colour.stops`: two HSB colours with the same saturation and brightness; hue is
-  in degrees, S/B in percentages.
-- `preset.kind`: linear or mixed.
-- `angleDegrees`: linear only; 0° goes left to right, 90° top to bottom.
+- `colour.stops`: HSB colours; hue is in degrees, S/B in percentages. Gradient:
+  two stops sharing saturation and brightness. Soft forms: the background's two
+  vivid stops.
+- `colour.hues`: soft forms only; the three neighbouring hues.
+- `preset.type`: gradient or soft-forms.
+- `preset.kind`: gradient only; linear or mixed.
+- `angleDegrees`: main direction; 0° goes left to right, 90° top to bottom
+  (gradient linear mode, and soft forms).
 - `variation.colourJitter`: linear only; random offset of each circle's gradient position.
-- `texture.type`: always circles.
+- `variation.grain`: soft forms only; grain strength in 0–255 channel units.
+- `texture.type`: circles (gradient) or soft-arcs (soft forms).
+- `texture.forms`: soft forms only; every region is listed explicitly:
+  `directionDegrees` (where its circle's centre lies), `radius` and `edge` (how far
+  the arc's nearest point is from the image centre), both as fractions of the smaller
+  dimension, `colour` (exact HSB), `opacity`, `softBlur` and `crispBlur` (the two
+  passes' blur radii), and `crispFadeSide`/`crispFadeEnd` (which way along the arc
+  the crisp edge fades and where it vanishes).
 - `variation.noise: null`: coherent noise is not used yet.
 - `elements: []`: no additional decorative figures.
 
 ## Initial artistic parameters (editable experiments)
 
-These ranges live in COLOUR_RULES and TEXTURE_RULES in src/recipe.js.
+These ranges live in COLOUR_RULES, TEXTURE_RULES, SOFT_FORM_RULES and
+SOFT_FORM_COLOUR_RULES in src/recipe.js.
 
 | Parameter | Range | Reference |
 | --- | --- | --- |
@@ -168,6 +206,31 @@ apart. The circle size matches the references, at the user's request; at avatar 
 circles become a fine texture. The random 8% offset makes the linear transition uneven, like the
 reference; it has its own random stream, so changing it does not move circles.
 
+Soft forms (SOFT_FORM_RULES):
+
+| Parameter | Range |
+| --- | --- |
+| Number of regions | 2–3 |
+| Circle radius | 1.2–3 × the smaller image dimension |
+| Arc's distance from the centre | −30% to +30% of the smaller dimension |
+| Opacity | 85–100% (light glow: 60% of that) |
+| Soft pass blur | 8–15% of the smaller dimension |
+| Crisp pass blur | 1–3%, fading out 40–80% of the way along the arc |
+| Grain | ±7 per channel, the same for R, G and B (no colour speckles) |
+
+Soft-form palette (SOFT_FORM_COLOUR_RULES), hue span 50–110°:
+
+| Tone | Saturation | Brightness | Used by |
+| --- | --- | --- | --- |
+| Vivid | 55–85% | 90–100% | background (hues 1–2), third region (hue 3) |
+| Deep | 70–90% | 68–82% | first region (hue 3) |
+| Light | 8–20% | 97–100% | second region (hue 2), translucent |
+
+Blur and radii are relative to the image, so a 64 px avatar looks like a scaled-down
+512 px image. Grain is per pixel, so it is finer relative to larger images. The
+background is drawn by Canvas, which blends in RGB; for nearby hues this is close
+to blending in HSB.
+
 Circle centres may lie up to one maximum radius outside the image so edges are
 covered like the interior. The background is filled with the palette's midpoint
 colour, so any small gaps between circles stay within the palette. Hue interpolation
@@ -175,7 +238,7 @@ follows the shorter arc around the colour wheel. No blur or filter is applied.
 
 ## Repeatability and deferred work
 
-The renderer accepts version 11 recipes. Regenerate older JSON from its input.
+The renderer accepts version 15 recipes. Regenerate older JSON from its input.
 Repeatability is checked in the same runtime/renderer environment, not guaranteed
 pixel-for-pixel across platforms or dependency upgrades. Different seeds can still
 produce similar images, especially with similar hues. Consumers own caching and
@@ -194,3 +257,11 @@ See CLAUDE.md for the roadmap and AGENTS.md for collaboration principles.
   pixels showed the background colour.
 - Version 11: replaced both with Hobbs-style pastel hue-only palettes and crisp
   circles, after the user compared the samples with his reference images.
+- Version 12: adds the soft-forms preset, chosen with equal probability; the
+  gradient preset is unchanged, but existing inputs may now select soft forms.
+- Version 13: soft forms get their own deep/mid/light palette, measured from the
+  references, instead of the pastel hue-only palette.
+- Version 14: soft forms combine hues by analogous, complementary,
+  split-complementary or triadic relationships; the base stays in the dominant hue.
+- Version 15: soft forms become two or three arc-edged colour regions in three
+  neighbouring hues, with crisp-to-smoky edges, a translucent light glow and grain.
